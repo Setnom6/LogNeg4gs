@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 import time
 from src.LogNegManager import LogNegManager

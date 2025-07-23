@@ -25,7 +25,7 @@ class PlotsManager:
 
     def plotResults(self):
         modesToApply = self.measurementDict.get("modesToApply", None)
-        if modesToApply is not None:
+        if modesToApply is not None and (self.measurementDict.get("type") != TypeOfMeasurement.OneByOneForAGivenMode.value):
             karray = [idx + 1 for idx in modesToApply]
             numberOfModes = len(modesToApply)
         else:
@@ -77,10 +77,10 @@ class PlotsManager:
 
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        baseDirectory = self.generalOptions["base_directory"]
         plotsDirectory = self.generalOptions["plots_directory"]
+        os.makedirs(plotsDirectory, exist_ok=True)
         figureName = self.measurementDict.get("type")+ "_"+ date + ".pdf"
-        figurePath = os.path.join(baseDirectory, plotsDirectory, figureName)
+        figurePath = os.path.join(plotsDirectory, figureName)
         plt.savefig(figurePath, bbox_extra_artists=(legend,), bbox_inches='tight')
 
 

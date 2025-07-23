@@ -1,0 +1,27 @@
+{
+  "general": {
+    "numModes": 128,
+    "plots_directory": "./plots/128-plots/",
+    "data_directory": "./data/128-data/",
+    "parallelize": true
+  },
+  "transformationMatrix": {
+    "DataDirectory": "./sims-128/",
+    "InstantToPlot": 15
+  },
+
+  "initialStates":
+    [
+      {"Temperature":  0.0,
+      "OneModeSqueezing": 0.0,
+        "TwoModeSqueezing": 0.0}
+    ]
+  ,
+
+  "measurements": [
+    {"type": "oneByOneForAGivenMode",
+      "modesToApply": [3],
+    "typeOfState":  1}
+
+  ]
+}

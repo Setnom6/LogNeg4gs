@@ -33,7 +33,7 @@ class Measurements:
         elif typeOfMeasurement == TypeOfMeasurement.HighestOneByOne.value:
             logNegArray = self.highestOneByOne(stateToApply)
         elif typeOfMeasurement == TypeOfMeasurement.OneByOneForAGivenMode.value:
-            logNegArray = self.oneByOneForAGivenMode(stateToApply)
+            logNegArray = self.oneByOneForAGivenMode(stateToApply, modesToConsider[0])
         elif typeOfMeasurement == TypeOfMeasurement.OddVSEven.value:
             logNegArray = self.oddVSEven(stateToApply)
         elif typeOfMeasurement == TypeOfMeasurement.SameParity.value:
@@ -153,8 +153,8 @@ class Measurements:
 
         results = self._execute(tasks)
 
-        for index, i2, value in results:
-            lognegarrayOneByOne[index][i2] = value
+        for i2, value in results:
+            lognegarrayOneByOne[i2] = value
 
         return lognegarrayOneByOne
 
