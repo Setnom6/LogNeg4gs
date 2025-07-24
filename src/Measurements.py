@@ -259,5 +259,38 @@ class Measurements:
             (state i, occupation number of mode j -> occupationNumber[i][j])
         """
         return stateToApply.occupation_number().flatten()
+
+
+    def computeHawkingPartnerLogNeg(self, stateToApply, modeToApply: int = None):
+        """
+        Computes the full logarithmic negativity between the hawking mode and its partner (each HP basis is independent from the others).
+        That is, for each mode, computes the logarithmic negativity taking that Hawking mode as partA and the partner as partB, tracing out the other modes.
+
+        Parameters:
+        inState: bool
+            If True, the logarithmic negativity is computed for the inState, otherwise for the outState
+
+        specialModes: list of int
+            Particular modes to consider
+
+        Returns:
+        dict[int, np.ndarray]
+            Dictionary with the Hawking Partner logarithmic negativity for each state. (indexes 1, 2, ...)
+            Each element of the dictionary is an array with the HP logarithmic negativity for each mode.
+            (state i, HP log neg of mode j -> fullLogNeg[i][j]) Only works for 1 state i
+        """
+
+        newBogoTrans, _, newOutState = self.obtainHawkingPartner(mode, inState=inState)
+        newOutState.apply_Bogoliubov_unitary(newBogoTrans)
+        logNegPartner = newOutState.logarithmic_negativity([0], [1])
+
+        results = self.obtainHPLogNegForListOfModes(specialModes, inState)
+
+        HPLogNeg = {i + 1: np.zeros(len(specialModes)) for i in range(self.plottingInfo["NumberOfStates"])}
+
+        for mode, logNeg in results:
+            HPLogNeg[1][specialModes.index(mode)] = logNeg
+
+        return HPLogNeg
     
     

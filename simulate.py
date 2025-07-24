@@ -37,7 +37,7 @@ for measurement in measurements:
     else:
         dict_to_plot = LNManager.measureFinalStatesEntanglement(measurement["type"], measurement.get("modesToApply", None))
 
-LNManager.plotResults(dict_to_plot)
+    LNManager.plotResults(dict_to_plot)
 
 # Stop the timer
 end_time = time.time()

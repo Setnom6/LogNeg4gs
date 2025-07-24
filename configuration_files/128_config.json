@@ -21,7 +21,9 @@
   "measurements": [
     {"type": "oneByOneForAGivenMode",
       "modesToApply": [3],
-    "typeOfState":  1}
+    "typeOfState":  1},
+    {"type": "fullLogNeg",
+    "typeOfState": 1}
 
   ]
 }
