@@ -1,6 +1,9 @@
 
+from __future__ import annotations
+from typing import Dict, List
 from src.Measurements import TypeOfMeasurement
-from src.CompleteSimulation import InitialStateParameters
+from src.CompleteSimulation import InitialStateParameters, InitialStateDictType
+from src.LogNegManager import MeasurementDictType, GeneralOptionsDictType, MeasurementParameters
 from matplotlib import pyplot as plt
 from matplotlib import rc
 import numpy as np
@@ -9,10 +12,10 @@ import os
 
 class PlotsManager:
 
-    def __init__(self, dict_of_results):
-        self.generalOptions = dict_of_results['generalOptions']
-        self.listInitialStatesOptions = dict_of_results['initialStates']
-        self.measurementDict = dict_of_results['measurement']
+    def __init__(self, dict_of_results: Dict):
+        self.generalOptions: GeneralOptionsDictType = dict_of_results['generalOptions']
+        self.listInitialStatesOptions: List[InitialStateDictType] = dict_of_results['initialStates']
+        self.measurementDict: MeasurementDictType = dict_of_results['measurement']
 
         self.correspondence_measurements = {
             TypeOfMeasurement.FullLogNeg.value: "Full Log Neg",
@@ -24,8 +27,13 @@ class PlotsManager:
         }
 
     def plotResults(self):
-        modesToApply = self.measurementDict.get("modesToApply", None)
-        if modesToApply is not None and (self.measurementDict.get("type") != TypeOfMeasurement.OneByOneForAGivenMode.value):
+        modesToApply = self.measurementDict[MeasurementParameters.MODES_TO_APPLY.value]
+        typeOfMeasurement = self.measurementDict[MeasurementParameters.TYPE.value]
+        results = self.measurementDict[MeasurementParameters.RESULTS.value]
+        typeOfState = self.measurementDict[MeasurementParameters.TYPE_OF_STATE.value]
+        extraData = self.measurementDict[MeasurementParameters.EXTRA_DATA.value]
+
+        if modesToApply is not None and (typeOfMeasurement != TypeOfMeasurement.OneByOneForAGivenMode.value):
             karray = [idx + 1 for idx in modesToApply]
             numberOfModes = len(modesToApply)
         else:
@@ -40,10 +48,16 @@ class PlotsManager:
             oneModeSqueezing = initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value,0.0)
             twoModeSqueezing = initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value,0.0)
             label = f"T = {temperature:.2f} K, r1 = {oneModeSqueezing:.2f}, r2 = {twoModeSqueezing:.2f}"
-
-            logNegArray = self.measurementDict.get("results")[i]
+                
+            logNegArray = results[i]
             y_values.extend(list(logNegArray))
             plt.loglog(karray, logNegArray, label=label, alpha=0.5, marker='.', markersize=8, linewidth=0.2)
+
+            if typeOfMeasurement == TypeOfMeasurement.HighestOneByOne.value:
+                if extraData[i] is not None:
+                    for i, txt in enumerate(extraData[i]):
+                        plt.annotate(txt + 1, (karray[i], logNegArray[i]), textcoords="offset points",
+                                    xytext=(0, 10), ha='center') 
 
         y_min = np.min(y_values)
         y_max = np.max(y_values)
@@ -64,7 +78,7 @@ class PlotsManager:
         plt.ylim(y_min, y_max)
         plt.xlabel(r"$I$", fontsize=20)
 
-        ylabel = r"$n$" if TypeOfMeasurement.OccupationNumber.value == self.measurementDict.get("type") else r"$LogNeg(I)$"
+        ylabel = r"$n$" if TypeOfMeasurement.OccupationNumber.value == typeOfMeasurement else r"$LogNeg(I)$"
         plt.ylabel(ylabel, fontsize=20)
         legend = plt.legend(loc='upper left', bbox_to_anchor=(1, 1), borderaxespad=0., fontsize=16)
         rc('xtick', labelsize=16)
@@ -72,14 +86,17 @@ class PlotsManager:
         plt.grid()
         plt.tight_layout()
 
-        statesTypes = "In States" if self.measurementDict.get("typeOfState") == 0 else "Out States"
-        plt.suptitle(self.correspondence_measurements[self.measurementDict.get("type")] + " for " + statesTypes , fontsize=20)
+        statesTypes = "In States" if typeOfState == 0 else "Out States"
+        title = self.correspondence_measurements[typeOfMeasurement] + " for " + statesTypes
+        if typeOfMeasurement == TypeOfMeasurement.OneByOneForAGivenMode.value:
+            title = self.correspondence_measurements[typeOfMeasurement] + " for " + statesTypes + ' for ' + str(modesToApply[0]+1) + ' state'
+        plt.suptitle(title, fontsize=20)
 
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         plotsDirectory = self.generalOptions["plots_directory"]
         os.makedirs(plotsDirectory, exist_ok=True)
-        figureName = self.measurementDict.get("type")+ "_"+ date + ".pdf"
+        figureName = typeOfMeasurement+ "_"+ date + ".pdf"
         figurePath = os.path.join(plotsDirectory, figureName)
         plt.savefig(figurePath, bbox_extra_artists=(legend,), bbox_inches='tight')
 

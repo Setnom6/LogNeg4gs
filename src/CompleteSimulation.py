@@ -1,6 +1,10 @@
 
+from __future__ import annotations
+
 import src.qgt as qgt
 import numpy as np
+
+from typing import TypedDict
 
 from enum import Enum
 
@@ -8,14 +12,27 @@ import pylab as pl
 
 import warnings
 
-class InitialStateParameters(Enum):
-   TEMPERATURE = "Temperature"
-   ONE_MODE_SQUEEZING = "OneModeSqueezing"
-   TWO_MODE_SQUEEZING = "TwoModeSqueezing"
 
 class TransformationMatrixParameters(Enum):
-    DATA_DIRECTORY = "DataDirectory"
-    INSTANT_TO_PLOT = "InstantToPlot"
+    DATA_DIRECTORY = "dataDirectory"
+    INSTANT_TO_PLOT = "instantToPlot"
+
+class InitialStateParameters(Enum):
+   TEMPERATURE = "temperature"
+   ONE_MODE_SQUEEZING = "oneModeSqueezing"
+   TWO_MODE_SQUEEZING = "twoModeSqueezing"
+
+
+class InitialStateDictType(TypedDict):
+    temperature: float
+    oneModeSqueezing: float
+    twoModeSqueezing: float
+
+class TransformationMatrixDictType(TypedDict):
+    dataDirectory: str
+    instantToPlot: int
+
+
 
 
 class CompleteSimulation:
@@ -27,14 +44,22 @@ class CompleteSimulation:
     outState: qgt.Gaussian_state
     transformationMatrix: np.ndarray
 
-    def __init__(self, numModes: int, transformationDict: dict,  initialStateDict: dict, directParseOfTM: np.ndarray = None):
+    def __init__(self, numModes: int,  initialStateDict: InitialStateDictType, transformationDict: TransformationMatrixDictType = None, directParseOfTM: np.ndarray = None):
         """
-        Constructor for the CompleteSimulation class.
+        Constructor for the CompleteSimulation class, it assigns all the atributes except from the outPut state which is computed only
+        if the method 'performTransformation' is called.
 
-        :param numModes: (int) number of modes considered in the simulation
-        :param transformationDict: (dict) data to construct the transformation matrix from a folder with the alphas and betas
-        :param initialStateDict: (dict) specifications for the initial state over which the transformation will be performed
+        Parameters:
+        numModes: (int) 
+            number of modes considered in the simulation 
+        transformationDict: (dict) 
+            data to construct the transformation matrix from a folder with the alphas and betas 
+        initialStateDict: (dict) 
+            specifications for the initial state over which the transformation will be performed
+        directParseOfTM: (np.ndarray)
+            transformation matrix in terms of Bogoliubov coefficientes
         """
+
         self.MODES = numModes
         self.kArray = [i for i in range(1, numModes + 1)]
         if directParseOfTM is not None:
@@ -44,7 +69,7 @@ class CompleteSimulation:
         self.inState = self._createInState(initialStateDict)
         self.outState = None
 
-    def _constructTransformationMatrix(self, transformationDict: dict) -> np.ndarray:
+    def _constructTransformationMatrix(self, transformationDict: TransformationMatrixDictType) -> np.ndarray:
         """
         Constructs the transformation matrix from the data stored in the directory.
         The data should be stored in files named as:
@@ -52,19 +77,17 @@ class CompleteSimulation:
         beta-nMODES-i.txt
         where i is the mode index
 
-        It also creates de kArray, which is an array with the mode indexes (typically an array from 1 to MODES)
-
         Parameters:
-        directory: str
-            Directory where the data is stored
+        transformationDict: (dict) 
+            data to construct the transformation matrix from a folder with the alphas and betas 
 
         Returns:
         np.ndarray
             Transformation matrix constructed from the data using the formula (eq 38 paper):
             Smatrix = ((alpha_11 beta*_11 alpha_21 beta*_21 ...) , (beta_11 alpha*_11 beta_21 alpha*_21 ...), ...)
         """
-        directory = transformationDict.get(TransformationMatrixParameters.DATA_DIRECTORY.value, "")
-        instantToPlot = transformationDict.get(TransformationMatrixParameters.INSTANT_TO_PLOT.value, 1000)
+        directory = transformationDict.get(TransformationMatrixParameters.DATA_DIRECTORY.value)
+        instantToPlot = transformationDict.get(TransformationMatrixParameters.INSTANT_TO_PLOT.value)
 
         if directory == "":
             warnings.warn("No data directory specified")
@@ -158,28 +181,23 @@ class CompleteSimulation:
         return qgt.Is_Sympletic(matrix, 1)
 
 
-    def _createInState(self, initialStateDict: dict) -> qgt.Gaussian_state:
+    def _createInState(self, initialStateDict: InitialStateDictType) -> qgt.Gaussian_state:
         """
         Creates the initial state to be used in the calculations.
-        The state is created according to the initialStateType parameter.
-        For each element of the arrayParameters, a different state is created.
-        Also, the plottingInfo dictionary is updated with the information about the initial state created.
 
         Parameters:
-        initialStateType: InitialState
-            Type of initial state to be used
+        initialStateDict: (dict) 
+            specifications for the initial state over which the transformation will be performed
 
         Returns:
-            Dict[int, qgt.Gaussian_state]
-            Dictionary with the initial states created.
-            The first index is 1, the second is 2, and so on.
-            If no arrayParameters is given, the dictionary will have only one element.
+            qgt.Gaussian_state
+            Initial State with temperature and squeezing intensity (one or two modes) specified.
         """
 
-        temperature = initialStateDict.get(InitialStateParameters.TEMPERATURE.value, 0.0)
+        temperature = initialStateDict.get(InitialStateParameters.TEMPERATURE.value)
         temperatureGoodUnits = 0.694554 * temperature  # For L = 0.01 m, we go from T(Kelvin) to T(Planck) by T(P) = kb*L*T(K)/(c*hbar)
-        oneModeSqueezing = initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value, 0.0)
-        twoModeSqueezing = initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value, 0.0)
+        oneModeSqueezing = initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value)
+        twoModeSqueezing = initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value)
 
         if temperature == 0.0 and oneModeSqueezing == 0.0 and twoModeSqueezing == 0.0:
             return qgt.Gaussian_state("vacuum", self.MODES)
@@ -223,7 +241,7 @@ class CompleteSimulation:
     def performTransformation(self) -> None:
         """
         Performs the transformation of the initial states using the transformation matrix,
-        assuming it is given in termos of the bogoliubov coefficients.
+        assuming it is given in terms of the bogoliubov coefficients.
         """
         if self.transformationMatrix is None:
             raise Exception("Transformation matrix not initialized")

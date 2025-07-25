@@ -15,7 +15,7 @@ with open(config_file_path) as config_file:
     config = json.load(config_file)
 
 # Obtain dicts
-generalOptions = config["general"]
+generalOptions = config["generalOptions"]
 transformationMatrixOptions = config["transformationMatrix"]
 initialStates = config["initialStates"]
 measurements = config["measurements"]
@@ -32,11 +32,7 @@ LNManager = LogNegManager(generalOptions=generalOptions, transformationDict=tran
 # Perform the computations
 dict_to_plot = {}
 for measurement in measurements:
-    if measurement["typeOfState"] == 0:
-        dict_to_plot = LNManager.measureInitialStatesEntanglement(measurement["type"], measurement.get("modesToApply", None))
-    else:
-        dict_to_plot = LNManager.measureFinalStatesEntanglement(measurement["type"], measurement.get("modesToApply", None))
-
+    dict_to_plot = LNManager.measureEntanglement(measurement)
     LNManager.plotResults(dict_to_plot)
 
 # Stop the timer

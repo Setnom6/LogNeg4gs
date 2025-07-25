@@ -1,12 +1,13 @@
 
 from joblib import Parallel, delayed
-
+from __future__ import annotations
 
 import src.qgt as qgt
 
 import numpy as np
 
 from enum import Enum
+from typing import TypedDict, Dict, List, Any, Union, Tuple
 
 class TypeOfMeasurement(Enum):
     FullLogNeg = "fullLogNeg"
@@ -17,8 +18,14 @@ class TypeOfMeasurement(Enum):
     OccupationNumber = "occupationNumber"
 
 class Measurements:
+    """
+    Class to perform entanglement and other measurments on given states
+    """
     
-    def __init__(self, parallelize):
+    def __init__(self, parallelize: bool):
+        """
+        Builds the Measurements manager with the instruction to parallelize or not the processes
+        """
         self.parallelize = parallelize
 
     def _execute(self, tasks):
@@ -27,7 +34,7 @@ class Measurements:
         else:
             return [t() for t in tasks]
 
-    def selectMeasurement(self, typeOfMeasurement: str, stateToApply: qgt.Gaussian_state, modesToConsider: list =None):
+    def selectMeasurement(self, typeOfMeasurement: str, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         if typeOfMeasurement == TypeOfMeasurement.FullLogNeg.value:
             logNegArray = self.fullLogNeg(stateToApply, modesToConsider)
         elif typeOfMeasurement == TypeOfMeasurement.HighestOneByOne.value:
@@ -45,24 +52,23 @@ class Measurements:
 
         return logNegArray
 
-    def fullLogNeg(self, stateToApply: qgt.Gaussian_state, modesToConsider: list = None):
+    def fullLogNeg(self, stateToApply: qgt.Gaussian_state, modesToConsider: list[int] = None):
         """
-                Computes the full logarithmic negativity for the states.
-                That is, for each mode, computes the logarithmic negativity taking that mode as partA and all the others as partB.
+            Computes the full logarithmic negativity for the states.
+            That is, for each mode, computes the logarithmic negativity taking that mode as partA and all the others as partB.
+            If modesToConsider is given, it only iterates over the given modes.
 
-                Parameters:
-                inState: bool
-                    If True, the logarithmic negativity is computed for the inState, otherwise for the outState
+            Parameters:
+            stateToApply: qgt.Gaussian_state
+                The state to consider for the measurement
 
-                specialModes: list of int
-                    Particular modes to consider
+            modesToConsider: list of int
+                Particular modes to consider as partA en the bipartition. If None, it computes the fullLogNeg for every mode
 
-                Returns:
-                dict[int, np.ndarray]
-                    Dictionary with the full logarithmic negativity for each state. (indexes 1, 2, ...)
-                    Each element of the dictionary is an array with the full logarithmic negativity for each mode.
-                    (state i, full log neg of mode j -> fullLogNeg[i][j])
-                """
+            Returns:
+            np.ndarray
+                array with the FullLogNeg with the size of modesToConsider or the size of the total number of modes.
+            """
         
         MODES = stateToApply.N_modes
         if modesToConsider is None:
@@ -88,13 +94,19 @@ class Measurements:
 
         return fullLogNeg
 
-    def highestOneByOne(self, stateToApply: qgt.Gaussian_state):
+    def highestOneByOne(self, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None):
         """
         Computes the highest one-to-one logarithmic negativity for each mode and the partner mode that gives the highest value.
+        That is, for each mode it computes the LN between that mode as subsystem A and each of the rest of the modes as subsystem B, one by one.
+        It keeps the highest value encountered and the corresponding partner.
+        If modesToConsider is given, it only iterates over the given modes.
 
         Parameters:
-        inState: bool
-            If True, the logarithmic negativity is computed for the inState, otherwise for the outState
+            stateToApply: qgt.Gaussian_state
+                The state to consider for the measurement
+
+            modesToConsider: list of int
+                Particular modes to consider as partA en the bipartition. If None, it computes the highestOneByOne for every mode
 
         Returns:
         Tuple[np.ndarray, np.ndarray]
@@ -103,12 +115,17 @@ class Measurements:
             - Second array: partner mode that gives the highest value for each mode
 
         """
-        modeCount = stateToApply.N_modes
+        MODES = stateToApply.N_modes
+        if modesToConsider is None:
+            numberOfModes = MODES
+            modesToConsider = [idx for idx in range(numberOfModes)]
+        else:
+            numberOfModes = len(modesToConsider)
 
         def task(i1):
             def inner():
                 values = {}
-                for i2 in range(modeCount):
+                for i2 in range(MODES):
                     if i1 == i2:
                         values[i2] = 0.0
                     else:
@@ -118,7 +135,7 @@ class Measurements:
 
             return inner
 
-        tasks = [task(i1) for i1 in range(modeCount)]
+        tasks = [task(i1) for i1 in modesToConsider]
         results = self._execute(tasks)
         maxValues, maxPartners = zip(*results)
         return np.array(maxValues), np.array(maxPartners)
@@ -127,18 +144,17 @@ class Measurements:
     def oneByOneForAGivenMode(self, stateToApply: qgt.Gaussian_state, modeIndex: int):
         """
         Computes the one-to-one logarithmic negativity for a given mode with all the others.
+        That is, it computes the LN between that mode as subsystem A and each of the rest of the modes as subsystem B, one by one.
 
         Parameters:
-        mode: int
+        stateToApply: qgt.Gaussian_state
+            The state to consider for the measurement
+        modeIndex: int
             Mode to be used as partA
-        inState: bool
-            If True, the logarithmic negativity is computed for the inState, otherwise for the outState
 
         Returns:
-        Dict[int, np.ndarray]
-            Dictionary with the one-to-one logarithmic negativity for each state. (indexes 1, 2, ...)
-            Each element of the dictionary is an array with the one-to-one logarithmic negativity for the given mode with each other mode.
-            (state i, one-to-one log neg between given mode and mode j -> lognegarrayOneByOne[i][j])
+        np.ndarray
+            Array with the one-to-one logarithmic negativity for the given mode with each other mode.
         """
         MODES = stateToApply.N_modes
         lognegarrayOneByOne = np.zeros(MODES)
@@ -159,26 +175,34 @@ class Measurements:
         return lognegarrayOneByOne
 
 
-    def oddVSEven(self, stateToApply):
+    def oddVSEven(self, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None):
         """
         Computes the logarithmic negativity for the even modes vs the odd modes and vice versa.
         That is, for each mode, computes the logarithmic negativity taking that mode as partA,
         if the mode is even, then partB is all the odd modes, if the mode is odd, then partB is all the even modes.
 
         Parameters:
-        inState: bool
-            If True, the logarithmic negativity is computed for the inState, otherwise for the outState
+        stateToApply: qgt.Gaussian_state
+                The state to consider for the measurement
+
+        modesToConsider: list of int
+                Particular modes to consider as partA en the bipartition. If None, it computes the oddVSEven for every mode
 
         Returns:
-        Dict[int, np.ndarray]
-            Dictionary with the logarithmic negativity for each state. (indexes 1, 2, ...)
-            Each element of the dictionary is an array with the logarithmic negativity for each mode.
-            (state i, log neg of mode j -> lognegarrayOneByOne[i][j])
+        np.ndarray
+            Array with the OddVSEven logarithmic negativity for each mode.
         """
+
         MODES = stateToApply.N_modes
+        if modesToConsider is None:
+            numberOfModes = MODES
+            modesToConsider = [idx for idx in range(numberOfModes)]
+        else:
+            numberOfModes = len(modesToConsider)
+
         evenFirstModes = np.arange(0, MODES - 1, 2)
         oddFirstModes = np.arange(1, MODES, 2)
-        logNegEvenVsOdd = np.zeros(MODES)
+        logNegEvenVsOdd = np.zeros(modesToConsider)
 
         def task(mode):
             def inner():
@@ -192,7 +216,7 @@ class Measurements:
 
             return inner
 
-        tasks = [task( mode) for mode in range(MODES)]
+        tasks = [task( mode) for mode in modesToConsider]
 
         results = self._execute(tasks)
 
@@ -202,26 +226,34 @@ class Measurements:
         return logNegEvenVsOdd
 
 
-    def sameParity(self, stateToApply: qgt.Gaussian_state):
+    def sameParity(self, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None):
         """
-                Computes the logarithmic negativity for the even modes vs the rest of even modes. The same for the odd modes.
-                That is, for each mode, computes the logarithmic negativity taking that mode as partA,
-                if the mode is even, then partB is the rest of the even modes, if the mode is odd, then partB is the rest of the odd modes.
+        Computes the logarithmic negativity for the even modes vs the odd modes and vice versa.
+        That is, for each mode, computes the logarithmic negativity taking that mode as partA,
+        if the mode is even, then partB is the rest of the even modes, if the mode is odd, then partB is the rest of the odd modes.
 
-                Parameters:
-                inState: bool
-                    If True, the logarithmic negativity is computed for the inState, otherwise for the outState
 
-                Returns:
-                Dict[int, np.ndarray]
-                    Dictionary with the logarithmic negativity for each state. (indexes 1, 2, ...)
-                    Each element of the dictionary is an array with the logarithmic negativity for each mode.
-                    (state i, log neg of mode j -> lognegarrayOneByOne[i][j])
+        Parameters:
+        stateToApply: qgt.Gaussian_state
+                The state to consider for the measurement
+
+        modesToConsider: list of int
+                Particular modes to consider as partA en the bipartition. If None, it computes the sameParity for every mode
+
+        Returns:
+        np.ndarray
+            Array with the sameParity logarithmic negativity for each mode.
         """
         MODES = stateToApply.N_modes
+        if modesToConsider is None:
+            numberOfModes = MODES
+            modesToConsider = [idx for idx in range(numberOfModes)]
+        else:
+            numberOfModes = len(modesToConsider)
+
         evenFirstModes = np.arange(0, MODES - 1, 2)
         oddFirstModes = np.arange(1, MODES, 2)
-        logNegEvenVsOdd = np.zeros(MODES)
+        logNegEvenVsOdd = np.zeros(modesToConsider)
 
         def task(mode):
             def inner():
@@ -235,7 +267,7 @@ class Measurements:
 
             return inner
 
-        tasks = [task(mode) for mode in range(MODES)]
+        tasks = [task(mode) for mode in modesToConsider]
 
         results = self._execute(tasks)
 
@@ -244,53 +276,21 @@ class Measurements:
 
         return logNegEvenVsOdd
 
-    def occupationNumber(self, stateToApply):
+    def occupationNumber(self, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None):
         """
         Computes the occupation number for each mode of the state.
 
         Parameters:
-        inState: bool
-            If True, the occupation number is computed for the inState, otherwise for the outState
+        stateToApply: qgt.Gaussian_state
+                The state to consider for the measurement
+
+        modesToConsider: list of int
+                Particular modes to consider as partA en the bipartition. If None, it computes the occupation number for every mode
 
         Returns:
-        Dict[int, np.ndarray]
-            Dictionary with the occupation number for each state. (indexes 1, 2, ...)
-            Each element of the dictionary is an array with the occupation number for each mode.
-            (state i, occupation number of mode j -> occupationNumber[i][j])
+        np.ndarray
+            Array with the occupation number for each mode.
         """
         return stateToApply.occupation_number().flatten()
-
-
-    def computeHawkingPartnerLogNeg(self, stateToApply, modeToApply: int = None):
-        """
-        Computes the full logarithmic negativity between the hawking mode and its partner (each HP basis is independent from the others).
-        That is, for each mode, computes the logarithmic negativity taking that Hawking mode as partA and the partner as partB, tracing out the other modes.
-
-        Parameters:
-        inState: bool
-            If True, the logarithmic negativity is computed for the inState, otherwise for the outState
-
-        specialModes: list of int
-            Particular modes to consider
-
-        Returns:
-        dict[int, np.ndarray]
-            Dictionary with the Hawking Partner logarithmic negativity for each state. (indexes 1, 2, ...)
-            Each element of the dictionary is an array with the HP logarithmic negativity for each mode.
-            (state i, HP log neg of mode j -> fullLogNeg[i][j]) Only works for 1 state i
-        """
-
-        newBogoTrans, _, newOutState = self.obtainHawkingPartner(mode, inState=inState)
-        newOutState.apply_Bogoliubov_unitary(newBogoTrans)
-        logNegPartner = newOutState.logarithmic_negativity([0], [1])
-
-        results = self.obtainHPLogNegForListOfModes(specialModes, inState)
-
-        HPLogNeg = {i + 1: np.zeros(len(specialModes)) for i in range(self.plottingInfo["NumberOfStates"])}
-
-        for mode, logNeg in results:
-            HPLogNeg[1][specialModes.index(mode)] = logNeg
-
-        return HPLogNeg
     
     
