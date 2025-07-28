@@ -1,14 +1,16 @@
-
 from __future__ import annotations
+
+import os
+from datetime import datetime
 from typing import Dict, List
-from src.Measurements import TypeOfMeasurement
-from src.CompleteSimulation import InitialStateParameters, InitialStateDictType
-from src.LogNegManager import MeasurementDictType, GeneralOptionsDictType, MeasurementParameters
+
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import rc
-import numpy as np
-from datetime import datetime
-import os
+
+from src.TypesAndParameters import MeasurementDictType, GeneralOptionsDictType, MeasurementParameters, \
+    InitialStateParameters, InitialStateDictType, TypeOfMeasurement, GeneralOptionsParameters
+
 
 class PlotsManager:
 
@@ -33,22 +35,23 @@ class PlotsManager:
         typeOfState = self.measurementDict[MeasurementParameters.TYPE_OF_STATE.value]
         extraData = self.measurementDict[MeasurementParameters.EXTRA_DATA.value]
 
-        if modesToApply is not None and (typeOfMeasurement != TypeOfMeasurement.OneByOneForAGivenMode.value):
-            karray = [idx + 1 for idx in modesToApply]
-            numberOfModes = len(modesToApply)
-        else:
-            numberOfModes = self.generalOptions["numModes"]
-            karray = [idx + 1 for idx in range(1, numberOfModes+1)]
+        numberOfModes = self.generalOptions[GeneralOptionsParameters.NUM_MODES.value]
+        karray = [idx + 1 for idx in range(1, numberOfModes + 1)]
+        if modesToApply is not None:
+            if (typeOfMeasurement != TypeOfMeasurement.OneByOneForAGivenMode.value
+                    and typeOfMeasurement != TypeOfMeasurement.HighestOneByOne.value):
+                karray = [idx + 1 for idx in modesToApply]
+                numberOfModes = len(modesToApply)
 
         plt.figure(figsize=(12, 6))
 
         y_values = []
         for i, initialStateDict in enumerate(self.listInitialStatesOptions):
             temperature = initialStateDict.get(InitialStateParameters.TEMPERATURE.value, 0.0)
-            oneModeSqueezing = initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value,0.0)
-            twoModeSqueezing = initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value,0.0)
+            oneModeSqueezing = initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value, 0.0)
+            twoModeSqueezing = initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value, 0.0)
             label = f"T = {temperature:.2f} K, r1 = {oneModeSqueezing:.2f}, r2 = {twoModeSqueezing:.2f}"
-                
+
             logNegArray = results[i]
             y_values.extend(list(logNegArray))
             plt.loglog(karray, logNegArray, label=label, alpha=0.5, marker='.', markersize=8, linewidth=0.2)
@@ -57,7 +60,7 @@ class PlotsManager:
                 if extraData[i] is not None:
                     for i, txt in enumerate(extraData[i]):
                         plt.annotate(txt + 1, (karray[i], logNegArray[i]), textcoords="offset points",
-                                    xytext=(0, 10), ha='center') 
+                                     xytext=(0, 10), ha='center')
 
         y_min = np.min(y_values)
         y_max = np.max(y_values)
@@ -89,15 +92,14 @@ class PlotsManager:
         statesTypes = "In States" if typeOfState == 0 else "Out States"
         title = self.correspondence_measurements[typeOfMeasurement] + " for " + statesTypes
         if typeOfMeasurement == TypeOfMeasurement.OneByOneForAGivenMode.value:
-            title = self.correspondence_measurements[typeOfMeasurement] + " for " + statesTypes + ' for ' + str(modesToApply[0]+1) + ' state'
+            title = self.correspondence_measurements[typeOfMeasurement] + " for " + statesTypes + ' for ' + str(
+                modesToApply[0] + 1) + ' state'
         plt.suptitle(title, fontsize=20)
 
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        plotsDirectory = self.generalOptions["plots_directory"]
+        plotsDirectory = self.generalOptions[GeneralOptionsParameters.PLOTS_DIRECTORY.value]
         os.makedirs(plotsDirectory, exist_ok=True)
-        figureName = typeOfMeasurement+ "_"+ date + ".pdf"
+        figureName = typeOfMeasurement + "_" + date + ".pdf"
         figurePath = os.path.join(plotsDirectory, figureName)
         plt.savefig(figurePath, bbox_extra_artists=(legend,), bbox_inches='tight')
-
-

@@ -1,43 +1,18 @@
-
 from __future__ import annotations
 
 import os
-import numpy as np
-from .CompleteSimulation import CompleteSimulation, InitialStateDictType, TransformationMatrixDictType, TransformationMatrixParameters, InitialStateParameters
-from .Measurements import Measurements, TypeOfMeasurement
-from .PlotsManager import PlotsManager
-from datetime import datetime
-from typing import TypedDict, Dict, List, Tuple, Any, get_type_hints
-from enum import Enum
 import warnings
+from datetime import datetime
+from typing import Dict, List, Tuple, get_type_hints
 
-class GeneralOptionsParameters(Enum):
-    NUM_MODES = "numModes"
-    PLOTS_DIRECTORY = "plotsDirectory"
-    DATA_DIRECTORY = "dataDirectory"
-    BASE_DIRECTORY  ="baseDirectory"
-    PARALLELIZE = "parallelize"
+import numpy as np
 
-class GeneralOptionsDictType(TypedDict):
-    numModes = int
-    plotsDirectory = str
-    dataDirectory  = str
-    baseDirectory = str
-    parallelize = bool
-
-class MeasurementParameters(Enum):
-    TYPE = "type"
-    MODES_TO_APPLY = "modesToApply"
-    TYPE_OF_STATE = 'typeOfState'
-    RESULTS = "results"
-    EXTRA_DATA = "extraData"
-
-class MeasurementDictType(TypedDict):
-    type: str
-    modesToApply: List[int]
-    typeOfState: int
-    results: Dict[int, np.ndarray]
-    extraData: Dict[int, Any]
+from .CompleteSimulation import CompleteSimulation
+from .Measurements import Measurements
+from .PlotsManager import PlotsManager
+from .TypesAndParameters import InitialStateDictType, TransformationMatrixDictType, \
+    TransformationMatrixParameters, InitialStateParameters, TypeOfMeasurement, GeneralOptionsParameters, \
+    GeneralOptionsDictType, MeasurementParameters, MeasurementDictType
 
 
 class LogNegManager:
@@ -54,17 +29,21 @@ class LogNegManager:
         """
         listOfSimulations = []
 
-        generalOptions, transformationDict, initialStates = self._validateEssentialDicts(generalOptions, transformationDict, initialStates)
+        generalOptions, transformationDict, initialStates = self._validateEssentialDicts(generalOptions,
+                                                                                         transformationDict,
+                                                                                         initialStates)
         numModes = generalOptions[GeneralOptionsParameters.NUM_MODES.value]
         if isinstance(initialStates, dict):
             listOfSimulations.append(CompleteSimulation(numModes, initialStates, transformationDict=transformationDict))
             listOfSimulations[0].performTransformation()
         else:
-            listOfSimulations.append(CompleteSimulation(numModes, initialStates[0], transformationDict=transformationDict))
+            listOfSimulations.append(
+                CompleteSimulation(numModes, initialStates[0], transformationDict=transformationDict))
             listOfSimulations[0].performTransformation()
             transformationMatrix = listOfSimulations[0].transformationMatrix
             for i in range(1, len(initialStates)):
-                listOfSimulations.append(CompleteSimulation(numModes, initialStates[i], directParseOfTM=transformationMatrix))
+                listOfSimulations.append(
+                    CompleteSimulation(numModes, initialStates[i], directParseOfTM=transformationMatrix))
                 listOfSimulations[i].performTransformation()
 
         self.measurements = Measurements(parallelize=generalOptions[GeneralOptionsParameters.PARALLELIZE.value])
@@ -72,34 +51,37 @@ class LogNegManager:
         self.listOfSimulations = listOfSimulations
         self.initialStatesOptions = initialStates
         self.dictTransformationMatrix = transformationDict
-        self.dictGenerealOptions = generalOptions
+        self.dictGeneralOptions = generalOptions
 
     def measureEntanglement(self, measurementDict: Dict) -> Dict:
         measurementDict = self._validateMeasurementDict(measurementDict)
         measurementType = measurementDict[MeasurementParameters.TYPE.value]
         modesToApply = measurementDict[MeasurementParameters.MODES_TO_APPLY.value]
         typeOfState = measurementDict[MeasurementParameters.TYPE_OF_STATE.value]
-        stateToMeasure  = simulation.inState if typeOfState == 0 else simulation.inState
-        
+
         for i, simulation in enumerate(self.listOfSimulations):
+            stateToMeasure = simulation.inState if typeOfState == 0 else simulation.outState
             if measurementType == TypeOfMeasurement.HighestOneByOne.value:
-                measurementDict[MeasurementParameters.RESULTS.value][i],measurementDict[MeasurementParameters.EXTRA_DATA.value][i] = self.measurements.selectMeasurement(measurementType, stateToMeasure , modesToApply)
+                measurementDict[MeasurementParameters.RESULTS.value][i], \
+                    measurementDict[MeasurementParameters.EXTRA_DATA.value][i] = self.measurements.selectMeasurement(
+                    measurementType, stateToMeasure, modesToApply)
             else:
-                 measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.selectMeasurement(measurementType, stateToMeasure, modesToApply)
+                measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.selectMeasurement(
+                    measurementType, stateToMeasure, modesToApply)
 
         dict_saved = self.saveData(measurementDict)
         return dict_saved
 
     def saveData(self, measurementDict: MeasurementDictType) -> Dict:
         dict_to_save = {
-            "generalOptions": self.dictGenerealOptions.copy(),
+            "generalOptions": self.dictGeneralOptions.copy(),
             "initialStates": self.initialStatesOptions.copy(),
             "transformationMatrix": self.dictTransformationMatrix.copy(),
             "measurement": measurementDict.copy()
         }
 
-        baseDirectory = self.dictGenerealOptions[GeneralOptionsParameters.BASE_DIRECTORY.value]
-        dataDirectory = self.dictGenerealOptions[GeneralOptionsParameters.DATA_DIRECTORY.value]
+        baseDirectory = self.dictGeneralOptions[GeneralOptionsParameters.BASE_DIRECTORY.value]
+        dataDirectory = self.dictGeneralOptions[GeneralOptionsParameters.DATA_DIRECTORY.value]
         data_dir = os.path.join(baseDirectory, dataDirectory)
         os.makedirs(data_dir, exist_ok=True)
 
@@ -114,8 +96,8 @@ class LogNegManager:
         return dict_to_save
 
     def loadData(self, filename: str) -> Dict:
-        baseDirectory = self.dictGenerealOptions[GeneralOptionsParameters.BASE_DIRECTORY.value]
-        dataDirectory = self.dictGenerealOptions[GeneralOptionsParameters.DATA_DIRECTORY.value]
+        baseDirectory = self.dictGeneralOptions[GeneralOptionsParameters.BASE_DIRECTORY.value]
+        dataDirectory = self.dictGeneralOptions[GeneralOptionsParameters.DATA_DIRECTORY.value]
         file_path = os.path.join(baseDirectory, dataDirectory, filename)
 
         if not os.path.isfile(file_path):
@@ -123,11 +105,11 @@ class LogNegManager:
 
         with np.load(file_path, allow_pickle=True) as data:
             dict_loaded = {
-                    "generalOptions": data["generalOptions"].item(),
-                    "initialStates": data["initialStates"].item(),
-                    "transformationMatrix":data["transformationMatrix"].item(),
-                    "measurement": data["measurement"].item()
-            }        
+                "generalOptions": data["generalOptions"].item(),
+                "initialStates": data["initialStates"],
+                "transformationMatrix": data["transformationMatrix"].item(),
+                "measurement": data["measurement"].item()
+            }
 
         return dict_loaded
 
@@ -141,14 +123,13 @@ class LogNegManager:
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-
     def _validateEssentialDicts(
-        self,
-        generalOptions: Dict,
-        transformationDict: Dict,
-        initialStates: List[Dict]
-        ) -> Tuple[GeneralOptionsDictType, TransformationMatrixDictType, List[InitialStateDictType]]:
-        
+            self,
+            generalOptions: Dict,
+            transformationDict: Dict,
+            initialStates: List[Dict]
+    ) -> Tuple[GeneralOptionsDictType, TransformationMatrixDictType, List[InitialStateDictType]]:
+
         # Verify unknown keys
         valid_general_keys = set(get_type_hints(GeneralOptionsDictType).keys())
         valid_transformation_keys = set(get_type_hints(TransformationMatrixDictType).keys())
@@ -182,47 +163,58 @@ class LogNegManager:
         # Create valid dicts
         copyGeneralOptions = {
             GeneralOptionsParameters.NUM_MODES.value: generalOptions.get(GeneralOptionsParameters.NUM_MODES.value, 128),
-            GeneralOptionsParameters.PLOTS_DIRECTORY.value: generalOptions.get(GeneralOptionsParameters.PLOTS_DIRECTORY.value, "./plots/128-plots/"),
-            GeneralOptionsParameters.DATA_DIRECTORY.value: generalOptions.get(GeneralOptionsParameters.DATA_DIRECTORY.value, "./data/128-plots/"),
-            GeneralOptionsParameters.PARALLELIZE.value: generalOptions.get(GeneralOptionsParameters.PARALLELIZE.value, False)
+            GeneralOptionsParameters.PLOTS_DIRECTORY.value: generalOptions.get(
+                GeneralOptionsParameters.PLOTS_DIRECTORY.value, "./plots/128-plots/"),
+            GeneralOptionsParameters.DATA_DIRECTORY.value: generalOptions.get(
+                GeneralOptionsParameters.DATA_DIRECTORY.value, "./data/128-plots/"),
+            GeneralOptionsParameters.BASE_DIRECTORY.value: generalOptions.get(
+                GeneralOptionsParameters.BASE_DIRECTORY.value, "./"
+            ),
+            GeneralOptionsParameters.PARALLELIZE.value: generalOptions.get(GeneralOptionsParameters.PARALLELIZE.value,
+                                                                           False)
         }
 
         copyTransformationDict = {
-            TransformationMatrixParameters.DATA_DIRECTORY.value: transformationDict.get(TransformationMatrixParameters.DATA_DIRECTORY.value, "./sims-128/"),
-            TransformationMatrixParameters.INSTANT_TO_PLOT.value: transformationDict.get(TransformationMatrixParameters.INSTANT_TO_PLOT.value, -1)
+            TransformationMatrixParameters.DATA_DIRECTORY.value: transformationDict.get(
+                TransformationMatrixParameters.DATA_DIRECTORY.value, "./sims-128/"),
+            TransformationMatrixParameters.INSTANT_TO_PLOT.value: transformationDict.get(
+                TransformationMatrixParameters.INSTANT_TO_PLOT.value, -1)
         }
 
         copyInitialStates = []
         for initialStateDict in initialStates:
             copyInitialStates.append({
-                InitialStateParameters.TEMPERATURE.value: initialStateDict.get(InitialStateParameters.TEMPERATURE.value, 0.0),
-                InitialStateParameters.ONE_MODE_SQUEEZING.value: initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value, 0.0),
-                InitialStateParameters.TWO_MODE_SQUEEZING.value: initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value, 0.0)
+                InitialStateParameters.TEMPERATURE.value: initialStateDict.get(InitialStateParameters.TEMPERATURE.value,
+                                                                               0.0),
+                InitialStateParameters.ONE_MODE_SQUEEZING.value: initialStateDict.get(
+                    InitialStateParameters.ONE_MODE_SQUEEZING.value, 0.0),
+                InitialStateParameters.TWO_MODE_SQUEEZING.value: initialStateDict.get(
+                    InitialStateParameters.TWO_MODE_SQUEEZING.value, 0.0)
             })
-        
+
         return copyGeneralOptions, copyTransformationDict, copyInitialStates
 
-
-
-    def _validateMeasurementDict(measurementDict: Dict) -> MeasurementDictType:
-        valid_keys = set(get_type_hints(GeneralOptionsDictType).keys())
+    def _validateMeasurementDict(self, measurementDict: Dict) -> MeasurementDictType:
+        valid_keys = set(get_type_hints(MeasurementDictType).keys())
         extra_keys = set(measurementDict.keys()) - valid_keys
         if extra_keys:
             warnings.warn(
-                f"Claves no reconocidas en generalOptions: {extra_keys}. "
-                "Estas claves serán ignoradas.",
+                f"on recognized keys in measurementDict: {extra_keys}. "
+                "These keys will be ignored.",
                 UserWarning
             )
 
         # Convert modesToApply to 0 index notation
         modesToApply = measurementDict.get(MeasurementParameters.MODES_TO_APPLY.value, None)
         if modesToApply is not None:
-            modesToApply = [i-1 for i in modesToApply]
+            modesToApply = [i - 1 for i in modesToApply]
 
         return {
-            MeasurementParameters.TYPE.value : measurementDict.get(MeasurementParameters.TYPE.value, TypeOfMeasurement.FullLogNeg.value),
+            MeasurementParameters.TYPE.value: measurementDict.get(MeasurementParameters.TYPE.value,
+                                                                  TypeOfMeasurement.FullLogNeg.value),
             MeasurementParameters.MODES_TO_APPLY.value: modesToApply,
-            MeasurementParameters.TYPE_OF_STATE.value: measurementDict.get(MeasurementParameters.TYPE_OF_STATE.value, 1),
-            MeasurementParameters.RESULTS.value : dict(),
-            MeasurementParameters.EXTRA_DATA: dict()
+            MeasurementParameters.TYPE_OF_STATE.value: measurementDict.get(MeasurementParameters.TYPE_OF_STATE.value,
+                                                                           1),
+            MeasurementParameters.RESULTS.value: dict(),
+            MeasurementParameters.EXTRA_DATA.value: dict()
         }

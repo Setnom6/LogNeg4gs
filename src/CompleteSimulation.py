@@ -1,38 +1,13 @@
-
 from __future__ import annotations
-
-import src.qgt as qgt
-import numpy as np
-
-from typing import TypedDict
-
-from enum import Enum
-
-import pylab as pl
 
 import warnings
 
+import numpy as np
+import pylab as pl
 
-class TransformationMatrixParameters(Enum):
-    DATA_DIRECTORY = "dataDirectory"
-    INSTANT_TO_PLOT = "instantToPlot"
-
-class InitialStateParameters(Enum):
-   TEMPERATURE = "temperature"
-   ONE_MODE_SQUEEZING = "oneModeSqueezing"
-   TWO_MODE_SQUEEZING = "twoModeSqueezing"
-
-
-class InitialStateDictType(TypedDict):
-    temperature: float
-    oneModeSqueezing: float
-    twoModeSqueezing: float
-
-class TransformationMatrixDictType(TypedDict):
-    dataDirectory: str
-    instantToPlot: int
-
-
+import src.qgt as qgt
+from .TypesAndParameters import (InitialStateParameters, InitialStateDictType,
+                                 TransformationMatrixParameters, TransformationMatrixDictType)
 
 
 class CompleteSimulation:
@@ -44,7 +19,8 @@ class CompleteSimulation:
     outState: qgt.Gaussian_state
     transformationMatrix: np.ndarray
 
-    def __init__(self, numModes: int,  initialStateDict: InitialStateDictType, transformationDict: TransformationMatrixDictType = None, directParseOfTM: np.ndarray = None):
+    def __init__(self, numModes: int, initialStateDict: InitialStateDictType,
+                 transformationDict: TransformationMatrixDictType = None, directParseOfTM: np.ndarray = None):
         """
         Constructor for the CompleteSimulation class, it assigns all the atributes except from the outPut state which is computed only
         if the method 'performTransformation' is called.
@@ -86,8 +62,8 @@ class CompleteSimulation:
             Transformation matrix constructed from the data using the formula (eq 38 paper):
             Smatrix = ((alpha_11 beta*_11 alpha_21 beta*_21 ...) , (beta_11 alpha*_11 beta_21 alpha*_21 ...), ...)
         """
-        directory = transformationDict.get(TransformationMatrixParameters.DATA_DIRECTORY.value)
-        instantToPlot = transformationDict.get(TransformationMatrixParameters.INSTANT_TO_PLOT.value)
+        directory = transformationDict[TransformationMatrixParameters.DATA_DIRECTORY.value]
+        instantToPlot = transformationDict[TransformationMatrixParameters.INSTANT_TO_PLOT.value]
 
         if directory == "":
             warnings.warn("No data directory specified")
@@ -152,7 +128,7 @@ class CompleteSimulation:
         In case the data directory is not provided, one can add directly the transformation matrix
         """
 
-        if transformationMatrix.shape[0] != 2*self.MODES:
+        if transformationMatrix.shape[0] != 2 * self.MODES:
             raise AttributeError("Transformation Matrix should match the number of modes")
 
         """if not self.checkSymplectic(transformationMatrix):
@@ -180,7 +156,6 @@ class CompleteSimulation:
     def checkSymplectic(matrix) -> bool:
         return qgt.Is_Sympletic(matrix, 1)
 
-
     def _createInState(self, initialStateDict: InitialStateDictType) -> qgt.Gaussian_state:
         """
         Creates the initial state to be used in the calculations.
@@ -194,10 +169,10 @@ class CompleteSimulation:
             Initial State with temperature and squeezing intensity (one or two modes) specified.
         """
 
-        temperature = initialStateDict.get(InitialStateParameters.TEMPERATURE.value)
+        temperature = initialStateDict[InitialStateParameters.TEMPERATURE.value]
         temperatureGoodUnits = 0.694554 * temperature  # For L = 0.01 m, we go from T(Kelvin) to T(Planck) by T(P) = kb*L*T(K)/(c*hbar)
-        oneModeSqueezing = initialStateDict.get(InitialStateParameters.ONE_MODE_SQUEEZING.value)
-        twoModeSqueezing = initialStateDict.get(InitialStateParameters.TWO_MODE_SQUEEZING.value)
+        oneModeSqueezing = initialStateDict[InitialStateParameters.ONE_MODE_SQUEEZING.value]
+        twoModeSqueezing = initialStateDict[InitialStateParameters.TWO_MODE_SQUEEZING.value]
 
         if temperature == 0.0 and oneModeSqueezing == 0.0 and twoModeSqueezing == 0.0:
             return qgt.Gaussian_state("vacuum", self.MODES)
@@ -221,7 +196,8 @@ class CompleteSimulation:
             intensity_array = [oneModeSqueezing for _ in range(0, self.MODES)]
             state = qgt.elementary_states("squeezed", intensity_array)
             n_vector = np.array([1.0 / (np.exp(np.pi * self.kArray[i] / temperatureGoodUnits) - 1.0) for i in
-                        range(0, self.MODES)] if temperatureGoodUnits > 0 else [0 for _ in range(0, self.MODES)])
+                                 range(0, self.MODES)] if temperatureGoodUnits > 0 else [0 for _ in
+                                                                                         range(0, self.MODES)])
             state.add_thermal_noise(n_vector)
             return state
 
@@ -230,13 +206,13 @@ class CompleteSimulation:
             for j in range(0, self.MODES, 2):
                 state.two_mode_squeezing(twoModeSqueezing, 0, [j, j + 1])
             n_vector = np.array([1.0 / (np.exp(np.pi * self.kArray[i] / temperatureGoodUnits) - 1.0) for i in
-                        range(0, self.MODES)] if temperatureGoodUnits > 0 else [0 for i in range(0, self.MODES)])
+                                 range(0, self.MODES)] if temperatureGoodUnits > 0 else [0 for i in
+                                                                                         range(0, self.MODES)])
             state.add_thermal_noise(n_vector)
             return state
 
         else:
             raise ValueError("Unrecognized inStateName")
-
 
     def performTransformation(self) -> None:
         """
@@ -252,5 +228,4 @@ class CompleteSimulation:
         outState = self.inState.copy()
         outState.apply_Bogoliubov_unitary(self.transformationMatrix)
 
-        self.outState =  outState
-    
+        self.outState = outState

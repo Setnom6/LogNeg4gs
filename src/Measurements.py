@@ -1,27 +1,19 @@
-
-from joblib import Parallel, delayed
 from __future__ import annotations
 
-import src.qgt as qgt
+from typing import List, Union, Tuple
 
 import numpy as np
+from joblib import Parallel, delayed
 
-from enum import Enum
-from typing import TypedDict, Dict, List, Any, Union, Tuple
+import src.qgt as qgt
+from .TypesAndParameters import TypeOfMeasurement
 
-class TypeOfMeasurement(Enum):
-    FullLogNeg = "fullLogNeg"
-    HighestOneByOne = "highestOneByOne"
-    OneByOneForAGivenMode = "oneByOneForAGivenMode"
-    OddVSEven = "oddVSEven"
-    SameParity = "sameParity"
-    OccupationNumber = "occupationNumber"
 
 class Measurements:
     """
     Class to perform entanglement and other measurments on given states
     """
-    
+
     def __init__(self, parallelize: bool):
         """
         Builds the Measurements manager with the instruction to parallelize or not the processes
@@ -34,7 +26,8 @@ class Measurements:
         else:
             return [t() for t in tasks]
 
-    def selectMeasurement(self, typeOfMeasurement: str, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    def selectMeasurement(self, typeOfMeasurement: str, stateToApply: qgt.Gaussian_state,
+                          modesToConsider: List[int] = None) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         if typeOfMeasurement == TypeOfMeasurement.FullLogNeg.value:
             logNegArray = self.fullLogNeg(stateToApply, modesToConsider)
         elif typeOfMeasurement == TypeOfMeasurement.HighestOneByOne.value:
@@ -69,7 +62,7 @@ class Measurements:
             np.ndarray
                 array with the FullLogNeg with the size of modesToConsider or the size of the total number of modes.
             """
-        
+
         MODES = stateToApply.N_modes
         if modesToConsider is None:
             numberOfModes = MODES
@@ -119,8 +112,6 @@ class Measurements:
         if modesToConsider is None:
             numberOfModes = MODES
             modesToConsider = [idx for idx in range(numberOfModes)]
-        else:
-            numberOfModes = len(modesToConsider)
 
         def task(i1):
             def inner():
@@ -139,7 +130,6 @@ class Measurements:
         results = self._execute(tasks)
         maxValues, maxPartners = zip(*results)
         return np.array(maxValues), np.array(maxPartners)
-
 
     def oneByOneForAGivenMode(self, stateToApply: qgt.Gaussian_state, modeIndex: int):
         """
@@ -174,7 +164,6 @@ class Measurements:
 
         return lognegarrayOneByOne
 
-
     def oddVSEven(self, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None):
         """
         Computes the logarithmic negativity for the even modes vs the odd modes and vice versa.
@@ -197,8 +186,6 @@ class Measurements:
         if modesToConsider is None:
             numberOfModes = MODES
             modesToConsider = [idx for idx in range(numberOfModes)]
-        else:
-            numberOfModes = len(modesToConsider)
 
         evenFirstModes = np.arange(0, MODES - 1, 2)
         oddFirstModes = np.arange(1, MODES, 2)
@@ -216,7 +203,7 @@ class Measurements:
 
             return inner
 
-        tasks = [task( mode) for mode in modesToConsider]
+        tasks = [task(mode) for mode in modesToConsider]
 
         results = self._execute(tasks)
 
@@ -224,7 +211,6 @@ class Measurements:
             logNegEvenVsOdd[mode] = value
 
         return logNegEvenVsOdd
-
 
     def sameParity(self, stateToApply: qgt.Gaussian_state, modesToConsider: List[int] = None):
         """
@@ -248,8 +234,6 @@ class Measurements:
         if modesToConsider is None:
             numberOfModes = MODES
             modesToConsider = [idx for idx in range(numberOfModes)]
-        else:
-            numberOfModes = len(modesToConsider)
 
         evenFirstModes = np.arange(0, MODES - 1, 2)
         oddFirstModes = np.arange(1, MODES, 2)
@@ -292,5 +276,3 @@ class Measurements:
             Array with the occupation number for each mode.
         """
         return stateToApply.occupation_number().flatten()
-    
-    
