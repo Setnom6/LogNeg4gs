@@ -67,3 +67,4 @@ class TypeOfMeasurement(Enum):
     OddVSEven = "oddVSEven"
     SameParity = "sameParity"
     OccupationNumber = "occupationNumber"
+    HawkingPartner = "hawkingPartner"

@@ -6,7 +6,10 @@ from datetime import datetime
 from typing import Dict, List, Tuple, get_type_hints
 
 import numpy as np
+from scipy.linalg import sqrtm
 
+import src.qgt as qgt
+from src.PartnerMethods import extractMinimalHawkingPartner
 from .CompleteSimulation import CompleteSimulation
 from .Measurements import Measurements
 from .PlotsManager import PlotsManager
@@ -65,12 +68,41 @@ class LogNegManager:
                 measurementDict[MeasurementParameters.RESULTS.value][i], \
                     measurementDict[MeasurementParameters.EXTRA_DATA.value][i] = self.measurements.selectMeasurement(
                     measurementType, stateToMeasure, modesToApply)
+
+            elif measurementType == TypeOfMeasurement.HawkingPartner.value:
+                if typeOfState == 0:
+                    warnings.warn("Hawking-Partner measurement only implemented for out states.")
+                    stateToMeasure = simulation.outState
+                if abs(self.initialStatesOptions[i][InitialStateParameters.TEMPERATURE.value]) > 1e-3:
+                    warnings.warn(
+                        "Hawking-Partner formula only works for initial pure states. Computing usual Full log neg...")
+                    measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.selectMeasurement(
+                        TypeOfMeasurement.FullLogNeg.value, stateToMeasure, modesToApply)
+
+                else:
+                    measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.hawkingPartner(
+                        self.callHawkingPartnerCreator, simulation.inState, simulation.transformationMatrix,
+                        modesToApply)
             else:
                 measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.selectMeasurement(
                     measurementType, stateToMeasure, modesToApply)
 
         dict_saved = self.saveData(measurementDict)
         return dict_saved
+
+    @staticmethod
+    def callHawkingPartnerCreator(stateToApply: qgt.Gaussian_state, transformationMatrix: np.ndarray,
+                                  modeA: int) -> np.ndarray:
+        """
+        Callable function which prepares the full Bogoliubov transformation on the state given.
+        It assumes that 'stateToApply' is the initial state with some feature (squeezing) but before the main transformation.
+        The main transformation is given directly as 'transformationMatrix'.
+        """
+        V = stateToApply.V
+        SInitial = sqrtm(V)
+        bogoliubovTransformation = transformationMatrix @ SInitial
+        newBogoliubovTransformation = extractMinimalHawkingPartner(bogoliubovTransformation, modeA)
+        return newBogoliubovTransformation
 
     def saveData(self, measurementDict: MeasurementDictType) -> Dict:
         dict_to_save = {

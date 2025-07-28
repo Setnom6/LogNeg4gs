@@ -26,6 +26,7 @@ class PlotsManager:
             TypeOfMeasurement.SameParity.value: "Same Parity Log Neg",
             TypeOfMeasurement.OccupationNumber.value: "Occupation Number",
             TypeOfMeasurement.OneByOneForAGivenMode.value: "One-By-One Log Neg",
+            TypeOfMeasurement.HawkingPartner.value: "Hawking Partner Log Neg",
         }
 
     def plotResults(self):

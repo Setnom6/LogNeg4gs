@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Callable
 
 import numpy as np
 from joblib import Parallel, delayed
@@ -31,15 +31,17 @@ class Measurements:
         if typeOfMeasurement == TypeOfMeasurement.FullLogNeg.value:
             logNegArray = self.fullLogNeg(stateToApply, modesToConsider)
         elif typeOfMeasurement == TypeOfMeasurement.HighestOneByOne.value:
-            logNegArray = self.highestOneByOne(stateToApply)
+            logNegArray = self.highestOneByOne(stateToApply, modesToConsider)
         elif typeOfMeasurement == TypeOfMeasurement.OneByOneForAGivenMode.value:
             logNegArray = self.oneByOneForAGivenMode(stateToApply, modesToConsider[0])
         elif typeOfMeasurement == TypeOfMeasurement.OddVSEven.value:
-            logNegArray = self.oddVSEven(stateToApply)
+            logNegArray = self.oddVSEven(stateToApply, modesToConsider)
         elif typeOfMeasurement == TypeOfMeasurement.SameParity.value:
-            logNegArray = self.sameParity(stateToApply)
+            logNegArray = self.sameParity(stateToApply, modesToConsider)
         elif typeOfMeasurement == TypeOfMeasurement.OccupationNumber.value:
-            logNegArray = self.occupationNumber(stateToApply)
+            logNegArray = self.occupationNumber(stateToApply, modesToConsider)
+        elif typeOfMeasurement == TypeOfMeasurement.HawkingPartner.value:
+            raise RuntimeWarning("HawkingPartner has to be used through specific method in LogNegManager")
         else:
             raise NotImplementedError("The measurement type is not supported.")
 
@@ -275,4 +277,35 @@ class Measurements:
         np.ndarray
             Array with the occupation number for each mode.
         """
-        return stateToApply.occupation_number().flatten()
+        state = stateToApply.copy()
+        state.only_modes(modesToConsider)
+        return state.occupation_number().flatten()
+
+    def hawkingPartner(
+            self,
+            obtainHawkingPartner: Callable[[qgt.Gaussian_state, np.ndarray, int], np.ndarray],
+            stateToApply: qgt.Gaussian_state,
+            transformationMatrix: np.ndarray,
+            modesToConsider: List[int] = None
+    ):
+        MODES = stateToApply.N_modes
+        if modesToConsider is None:
+            numberOfModes = MODES
+            modesToConsider = [idx for idx in range(numberOfModes)]
+
+        logNegHawkingPartner = np.zeros(len(modesToConsider))
+
+        def task(mode):
+            newBogoTrans = obtainHawkingPartner(stateToApply, transformationMatrix, mode)
+            newInitialState = qgt.Gaussian_state("vacuum", 2)
+            newInitialState.apply_Bogoliubov_unitary(newBogoTrans)
+            logNegPartner = newInitialState.logarithmic_negativity([0], [1])
+            return mode, logNegPartner
+
+        tasks = [lambda mode=mode: task(mode) for mode in modesToConsider]
+        results = self._execute(tasks)
+
+        for mode, value in results:
+            logNegHawkingPartner[modesToConsider.index(mode)] = value
+
+        return logNegHawkingPartner
