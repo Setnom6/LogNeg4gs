@@ -196,15 +196,19 @@ def computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=1e-8):
 
         # Option B2 from paper 1503.06109 modified
 
-        # Set gamma coefficients as parallel to beta (we assume lambda=1 as proportionality coeff)
-        lambdaCoef = 1.0 + 1j * 0.0
-        gammaPerp = lambdaCoef * betaPerp
-        gammaParallel = lambdaCoef * betaParallel
+        # Now compute delta coeffs without lambda proportionality
 
-        # Now compute delta coeffs
+        A = (betaParallelConj * betaParallel + betaPerpConj * betaPerp) / np.conj(alpha)
+        B = (betaParallelConj * alpha - betaParallelConj * A) / betaPerpConj
 
-        deltaParallel = (np.conj(gammaParallel) * betaParallel + np.conj(gammaPerp) * betaPerp) / np.conj(alpha)
-        deltaPerp = (np.conj(deltaParallel) * alpha - betaParallelConj * deltaParallel) / betaPerpConj
+        # Use conmutation relation of partner to set lambda (we assume it to be real)
+        lambdaCoeff = np.sqrt(1.0 / (
+                betaParallel * betaParallelConj + betaPerp * betaPerpConj - np.abs(A) ** 2 - np.abs(B) ** 2))
+
+        gammaParallel = betaParallel * lambdaCoeff
+        gammaPerp = betaPerp * lambdaCoeff
+        deltaParallel = A * lambdaCoeff
+        deltaPerp = B * lambdaCoeff
 
     conmutatorPartner = np.abs(gammaParallel) ** 2 + np.abs(gammaPerp) ** 2 - np.abs(deltaParallel) ** 2 - np.abs(
         deltaPerp) ** 2
