@@ -100,13 +100,14 @@ class LogNegManager:
         The main transformation is given directly as 'transformationMatrix'.
         """
         V = stateToApply.V
-        SInitial = sqrtm(V)
+        SInitialGaussian = sqrtm(V)
+        SInitial = qgt.BasisChange(SInitialGaussian, 0)
         bogoliubovTransformation = transformationMatrix @ SInitial
         if criterion is None:
             criterion = "B1"
-        newBogoliubovTransformation = extractMinimalHawkingPartner(bogoliubovTransformation, modeA, partnerCriterion=criterion)
+        newBogoliubovTransformation = extractMinimalHawkingPartner(bogoliubovTransformation, modeA,
+                                                                   partnerCriterion=criterion)
         return newBogoliubovTransformation
-    
 
     def computeDifferenceBetweenMeasurements(self, measurementDict1: Dict, measurementDict2: Dict):
         resultsDict1 = self.measureEntanglement(measurementDict1)
@@ -114,18 +115,19 @@ class LogNegManager:
         self._checkmeasurementDictsCompatibility(resultsDict1["measurement"], resultsDict2["measurement"])
 
         totalResultsDict = resultsDict1.copy()
-        totalResultsDict["measurement"][MeasurementParameters.TYPE.value] =  TypeOfMeasurement.Comparison.value
+        totalResultsDict["measurement"][MeasurementParameters.TYPE.value] = TypeOfMeasurement.Comparison.value
 
         for i in range(len(totalResultsDict["initialStates"])):
-            totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] = totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] - resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i]
-        
-        totalResultsDict["measurement"][MeasurementParameters.EXTRA_DATA.value] = (resultsDict1["measurement"][MeasurementParameters.TYPE.value], 
-                                                                                   resultsDict1["measurement"][MeasurementParameters.TYPE_OF_STATE.value],
-                                                                                   resultsDict2["measurement"][MeasurementParameters.TYPE.value], 
-                                                                                   resultsDict2["measurement"][MeasurementParameters.TYPE_OF_STATE.value])
+            totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] = \
+            totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] - \
+            resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i]
+
+        totalResultsDict["measurement"][MeasurementParameters.EXTRA_DATA.value] = (
+        resultsDict1["measurement"][MeasurementParameters.TYPE.value],
+        resultsDict1["measurement"][MeasurementParameters.TYPE_OF_STATE.value],
+        resultsDict2["measurement"][MeasurementParameters.TYPE.value],
+        resultsDict2["measurement"][MeasurementParameters.TYPE_OF_STATE.value])
         return totalResultsDict
-
-
 
     def saveData(self, measurementDict: MeasurementDictType) -> Dict:
         dict_to_save = {
@@ -272,16 +274,16 @@ class LogNegManager:
                                                                            1),
             MeasurementParameters.RESULTS.value: dict(),
             MeasurementParameters.EXTRA_DATA.value: dict(),
-            MeasurementParameters.SPECIAL_INFO.value : measurementDict.get(MeasurementParameters.SPECIAL_INFO.value,
-                                                                           None)
+            MeasurementParameters.SPECIAL_INFO.value: measurementDict.get(MeasurementParameters.SPECIAL_INFO.value,
+                                                                          None)
         }
 
     def _checkmeasurementDictsCompatibility(self, mDict1: MeasurementDictType, mDict2: MeasurementDictType):
         if mDict1[MeasurementParameters.MODES_TO_APPLY.value] != mDict2[MeasurementParameters.MODES_TO_APPLY.value]:
             raise ValueError("Both measurements should be done over the same specified modes.")
-        
+
         if (mDict1[MeasurementParameters.TYPE.value] == TypeOfMeasurement.OneByOneForAGivenMode.value or
-        mDict1[MeasurementParameters.TYPE.value] == TypeOfMeasurement.HighestOneByOne.value or
-        mDict2[MeasurementParameters.TYPE.value] == TypeOfMeasurement.OneByOneForAGivenMode.value or
-        mDict2[MeasurementParameters.TYPE.value] == TypeOfMeasurement.HighestOneByOne.value):
+                mDict1[MeasurementParameters.TYPE.value] == TypeOfMeasurement.HighestOneByOne.value or
+                mDict2[MeasurementParameters.TYPE.value] == TypeOfMeasurement.OneByOneForAGivenMode.value or
+                mDict2[MeasurementParameters.TYPE.value] == TypeOfMeasurement.HighestOneByOne.value):
             raise ValueError("One by one simulations are not suitable for comparisons.")

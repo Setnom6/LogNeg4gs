@@ -96,13 +96,14 @@ class PlotsManager:
         if typeOfMeasurement == TypeOfMeasurement.OneByOneForAGivenMode.value:
             title = self.correspondence_measurements[typeOfMeasurement] + " for " + statesTypes + ' for ' + str(
                 modesToApply[0] + 1) + ' state'
-            
-        if typeOfMeasurement == TypeOfMeasurement.Comparison:
+
+        if typeOfMeasurement == TypeOfMeasurement.Comparison.value:
             measure1 = extraData[0]
             state1 = "In" if extraData[1] == 0 else "Out"
             measure2 = extraData[2]
             state2 = "In" if extraData[3] == 0 else "Out"
-            title = self.correspondence_measurements[typeOfMeasurement] + f"({measure1},{state1}) and ({measure2},{state2})"
+            title = self.correspondence_measurements[
+                        typeOfMeasurement] + f"({measure1},{state1}) and ({measure2},{state2})"
         plt.suptitle(title, fontsize=20)
 
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

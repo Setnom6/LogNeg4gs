@@ -283,7 +283,7 @@ class Measurements:
 
     def hawkingPartner(
             self,
-            obtainHawkingPartner: Callable[[qgt.Gaussian_state, np.ndarray, int], np.ndarray],
+            obtainHawkingPartner: Callable[[qgt.Gaussian_state, np.ndarray, int, str], np.ndarray],
             stateToApply: qgt.Gaussian_state,
             transformationMatrix: np.ndarray,
             modesToConsider: List[int] = None,

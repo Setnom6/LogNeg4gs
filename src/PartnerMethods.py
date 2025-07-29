@@ -19,13 +19,11 @@ def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8,
     alphaVec, betaVec = getAlphaBetaVectors(bogoliubovTransformation, modeIndex)
 
     # Compute decomposition of the Hawking mode
-    alpha, betaParallelConj, betaPerpConj = computeBetaParallelAndPerp(alphaVec, betaVec, atol=atol)
-    betaParallel = np.conj(betaParallelConj)
-    betaPerp = np.conj(betaPerpConj)
+    nParallel, alpha, nPerp, betaParallel, betaPerp = computeBetaParallelAndPerp(alphaVec, betaVec, atol=atol)
 
     # Choose partner mode coefficients according to selected criterion
     if partnerCriterion == 'B1':
-        gp, gpp, dp, dpp = computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=atol)
+        gp, gpp, dp, dpp = computePartnerMode(alpha, betaParallel, betaPerp, atol=atol)
     elif partnerCriterion == 'B2':
         gp, gpp, dp, dpp = computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=atol)
     else:
@@ -33,14 +31,13 @@ def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8,
 
     # Build reduced 4x4 transformation from IN to Hawking/Partner basis
     reducedTransformation = np.array([
-        [np.conj(alpha), -betaParallelConj, 0, -betaPerpConj],
-        [-betaParallel, alpha, -betaPerp, 0],
-        [np.conj(gp), -np.conj(dp), np.conj(gpp), -np.conj(dpp)],
-        [-dp, gp, -dpp, gpp]
+        [alpha, np.conj(betaParallel), 0, np.conj(betaPerp)],
+        [betaParallel, np.conj(alpha), betaPerp, 0],
+        [gp, np.conj(dp), gpp, np.conj(dpp)],
+        [dp, np.conj(gp), dpp, np.conj(gpp)]
     ], dtype=complex)
 
     return reducedTransformation
-
 
 
 def getAlphaBetaVectors(S, modeIndex):
@@ -56,8 +53,8 @@ def getAlphaBetaVectors(S, modeIndex):
         betaVector: elements at odd positions of row 2*modeIndex, as they are
     """
     row = S[2 * modeIndex]
-    alphaVector = np.conj(row[::2])  # elements 0, 2, 4, ... conjugated
-    betaVector = np.conj(-row[1::2])  # elements 1, 3, 5, ... not conjugated
+    alphaVector = row[::2]  # elements 0, 2, 4, ... conjugated
+    betaVector = np.conj(row[1::2])  # elements 1, 3, 5, ... not conjugated
     return alphaVector, betaVector
 
 
@@ -76,28 +73,29 @@ def computeBetaParallelAndPerp(alphaVec, betaVec, atol=1e-8):
     # Parallel vector (Hawking mode)
     nParallel = alphaVec / alphaNorm
     alpha = np.vdot(nParallel, alphaVec)
-    betaConj = np.conj(betaVec)
-    betaParallel_conj = np.vdot(nParallel, betaConj)
+    betaParallel = np.vdot(nParallel, betaVec)
 
     # Perpendicular vector
-    betaResidual = betaConj - betaParallel_conj * nParallel
+    betaResidual = betaVec - betaParallel * nParallel
     betaPerpNorm = np.linalg.norm(betaResidual)
 
     if betaPerpNorm > atol:
         nPerp = betaResidual / betaPerpNorm
-        betaPerp_conj = np.vdot(nPerp, betaConj)
+        betaPerp = np.vdot(nPerp, betaVec)
     else:
-        betaPerp_conj = 0.0
+        nPerp = np.zeros_like(betaVec)
+        betaPerp = 0.0
 
     # Check commutator
-    commutator = abs(alpha) ** 2 - abs(betaParallel_conj) ** 2 - abs(betaPerp_conj) ** 2
+    commutator = abs(alpha) ** 2 - abs(betaParallel) ** 2 - abs(betaPerp) ** 2
+
     if abs(commutator - 1) > 1e-6:
         raise ValueError(f"Commutator is not 1: {commutator}")
 
-    return alpha, betaParallel_conj, betaPerp_conj
+    return nParallel, alpha, nPerp, betaParallel, betaPerp
 
 
-def computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=1e-8):
+def computePartnerMode(alpha, betaParallel, betaPerp, atol=1e-8):
     """
     Given a mode a_H = alpha * a_|| + betaParallel * a_||^† + betaPerp * a_perp^†,
     returns the coefficients of the partner mode:
@@ -105,10 +103,11 @@ def computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=1e-8):
     a_p = gammaParallel^* a_|| + gammaPerp^* a_perp +
           deltaParallel a_||^† + deltaPerp a_perp^†
 
-    All coefficients are complex scalars.
+    All coefficients are complex scalars. It assumes the criterion B1 where deltaPerp = 0.0
     """
-    betaParallel = np.conj(betaParallelConj)
-    betaPerp = np.conj(betaPerpConj)
+    betaParallelConj = np.conj(betaParallel)
+    betaPerpConj = np.conj(betaPerp)
+    alphaConj = np.conj(alpha)
 
     if np.abs(betaParallel) < atol:
         # Special case: betaParallel = 0
@@ -132,8 +131,8 @@ def computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=1e-8):
         deltaPerp = 0.0 + 1j * 0
 
         # Define factors
-        A = betaParallelConj / np.conj(alpha)
-        B = (alpha - A * betaParallel) / betaPerp
+        A = betaParallel / alphaConj
+        B = (alpha - A * betaParallelConj) / betaPerpConj
 
         # Solve the equation:
         # |A * d|^2 + |B * d|^2 - |d|^2 = 1
@@ -154,6 +153,62 @@ def computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=1e-8):
     conmutatorPartner = np.abs(gammaParallel) ** 2 + np.abs(gammaPerp) ** 2 - np.abs(deltaParallel) ** 2 - np.abs(
         deltaPerp) ** 2
 
+    hawkingPartnerConmutator = alpha * np.conj(
+        deltaParallel) - betaParallelConj * gammaParallel - betaPerpConj * gammaPerp
+
+    HawkingDaggerPartnerConmutator = alphaConj * gammaParallel - betaParallel * np.conj(
+        deltaParallel) - betaPerp * np.conj(deltaPerp)
+
+    if abs(conmutatorPartner - 1.0) > 1e-4:
+        raise ValueError("Partner commutation relation fails to be fulfilled")
+
+    if abs(hawkingPartnerConmutator) > 1e-4:
+        raise ValueError("Hawking partner commutation fails to be fulfilled")
+
+    if abs(HawkingDaggerPartnerConmutator) > 1e-4:
+        raise ValueError("Hawking dagger partner commutation fails to be fulfilled")
+
+    return gammaParallel, gammaPerp, deltaParallel, deltaPerp
+
+
+def computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=1e-8):
+    """
+    Given a mode a_H = alpha * a_|| + betaParallel * a_||^† + betaPerp * a_perp^†,
+    returns the coefficients of the partner mode:
+
+    a_p = gammaParallel^* a_|| + gammaPerp^* a_perp +
+          deltaParallel a_||^† + deltaPerp a_perp^†
+
+    All coefficients are complex scalars. It assumes the criterion B1 where gamma is parallel to beta.
+    """
+
+    betaParallelConj = np.conj(betaParallel)
+    betaPerpConj = np.conj(betaPerp)
+
+    if np.abs(betaPerp) < atol:
+        # Special case: betaPerp = 0 (no partner needed, it is itself)
+        gammaParallel = alpha
+        gammaPerp = 0
+        deltaParallel = 0
+        deltaPerp = 0
+
+    else:
+
+        # Option B2 from paper 1503.06109 modified
+
+        # Set gamma coefficients as parallel to beta (we assume lambda=1 as proportionality coeff)
+        lambdaCoef = 1.0 + 1j * 0.0
+        gammaPerp = lambdaCoef * betaPerp
+        gammaParallel = lambdaCoef * betaParallel
+
+        # Now compute delta coeffs
+
+        deltaParallel = (np.conj(gammaParallel) * betaParallel + np.conj(gammaPerp) * betaPerp) / np.conj(alpha)
+        deltaPerp = (np.conj(deltaParallel) * alpha - betaParallelConj * deltaParallel) / betaPerpConj
+
+    conmutatorPartner = np.abs(gammaParallel) ** 2 + np.abs(gammaPerp) ** 2 - np.abs(deltaParallel) ** 2 - np.abs(
+        deltaPerp) ** 2
+
     hawkingPartnerConmutator = np.conj(gammaParallel) * alpha - betaParallel * np.conj(
         deltaParallel) - betaPerp * np.conj(deltaPerp)
 
@@ -167,53 +222,3 @@ def computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=1e-8):
         raise ValueError("Hawking partner commutation fails to be fulfilled")
 
     return gammaParallel, gammaPerp, deltaParallel, deltaPerp
-
-
-def computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=1e-8):
-    """
-    Given the decomposition of a Hawking mode:
-        b_H = alpha * a_parallel + betaParallel* a_parallel† + betaPerp* a_perp†,
-    computes the partner mode coefficients under criterion B2:
-        b_P = gammaParallel * a_parallel + gammaPerp * a_perp + 
-              deltaParallel * a_parallel† + deltaPerp * a_perp†
-    """
-
-    # Criterio B2: gamma ∝ conjugate(beta), delta ∝ conjugate(alpha)
-    # deltaPerp se pone a cero según el criterio
-    deltaPerp = 0.0
-
-    # Supón que: gamma_parallel = k * conjugate(beta_parallel)
-    #            gamma_perp = k * conjugate(beta_perp)
-    #            delta_parallel = k * conjugate(alpha)
-    # Busca k tal que se cumpla la normalización:
-    # |gamma_parallel|^2 + |gamma_perp|^2 - |delta_parallel|^2 = 1
-
-    betaNormSq = abs(betaParallel)**2 + abs(betaPerp)**2
-    alphaNormSq = abs(alpha)**2
-
-    denominator = betaNormSq - alphaNormSq
-
-    if np.abs(denominator) < atol:
-        raise ValueError("Cannot normalize partner mode: denominator too small.")
-
-    kSquared = 1.0 / denominator
-    if kSquared.real < 0:
-        raise ValueError("No real positive normalization possible under B2.")
-
-    k = np.sqrt(kSquared)
-
-    gammaParallel = k * np.conj(betaParallel)
-    gammaPerp = k * np.conj(betaPerp)
-    deltaParallel = k * np.conj(alpha)
-
-    # Verificación del conmutador:
-    commutator = (
-        abs(gammaParallel)**2 + abs(gammaPerp)**2
-        - abs(deltaParallel)**2 - abs(deltaPerp)**2
-    )
-
-    if np.abs(commutator - 1) > 1e-6:
-        raise ValueError(f"Commutator [bP, bP†] != 1: got {commutator}")
-
-    return gammaParallel, gammaPerp, deltaParallel, deltaPerp
-
