@@ -1,7 +1,7 @@
 from src.qgt import *
 
 
-def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8):
+def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8, partnerCriterion='B1'):
     """
     Builds a reduced 4x4 Bogoliubov transformation for the Hawking mode and its partner,
     without extending to a full orthonormal basis or using full 2N×2N matrices.
@@ -10,6 +10,7 @@ def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8)
         bogoliubovTransformation: full 2N x 2N Bogoliubov transformation matrix
         modeIndex: index of selected Hawking mode (in 0..N-1)
         atol: numerical tolerance
+        partnerCriterion: 'B1' (default) or 'B2', selects which criterion to use to define the partner mode
 
     Returns:
         newBogoliubovTransformation_4x4: Bogoliubov transformation acting only on Hawking+partner
@@ -17,16 +18,20 @@ def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8)
 
     alphaVec, betaVec = getAlphaBetaVectors(bogoliubovTransformation, modeIndex)
 
-    # Compute Hawking mode and partner coefficients
+    # Compute decomposition of the Hawking mode
     alpha, betaParallelConj, betaPerpConj = computeBetaParallelAndPerp(alphaVec, betaVec, atol=atol)
-
-    gp, gpp, dp, dpp = computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=atol)
-
     betaParallel = np.conj(betaParallelConj)
     betaPerp = np.conj(betaPerpConj)
 
+    # Choose partner mode coefficients according to selected criterion
+    if partnerCriterion == 'B1':
+        gp, gpp, dp, dpp = computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=atol)
+    elif partnerCriterion == 'B2':
+        gp, gpp, dp, dpp = computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=atol)
+    else:
+        raise ValueError(f"Unknown partnerCriterion: {partnerCriterion}. Use 'B1' or 'B2'.")
+
     # Build reduced 4x4 transformation from IN to Hawking/Partner basis
-    # a_H, a_H†, a_P, a_P† in terms of a_||, a_||†, a_perp, a_perp†
     reducedTransformation = np.array([
         [np.conj(alpha), -betaParallelConj, 0, -betaPerpConj],
         [-betaParallel, alpha, -betaPerp, 0],
@@ -35,6 +40,7 @@ def extractMinimalHawkingPartner(bogoliubovTransformation, modeIndex, atol=1e-8)
     ], dtype=complex)
 
     return reducedTransformation
+
 
 
 def getAlphaBetaVectors(S, modeIndex):
@@ -161,3 +167,53 @@ def computePartnerMode(alpha, betaParallelConj, betaPerpConj, atol=1e-8):
         raise ValueError("Hawking partner commutation fails to be fulfilled")
 
     return gammaParallel, gammaPerp, deltaParallel, deltaPerp
+
+
+def computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=1e-8):
+    """
+    Given the decomposition of a Hawking mode:
+        b_H = alpha * a_parallel + betaParallel* a_parallel† + betaPerp* a_perp†,
+    computes the partner mode coefficients under criterion B2:
+        b_P = gammaParallel * a_parallel + gammaPerp * a_perp + 
+              deltaParallel * a_parallel† + deltaPerp * a_perp†
+    """
+
+    # Criterio B2: gamma ∝ conjugate(beta), delta ∝ conjugate(alpha)
+    # deltaPerp se pone a cero según el criterio
+    deltaPerp = 0.0
+
+    # Supón que: gamma_parallel = k * conjugate(beta_parallel)
+    #            gamma_perp = k * conjugate(beta_perp)
+    #            delta_parallel = k * conjugate(alpha)
+    # Busca k tal que se cumpla la normalización:
+    # |gamma_parallel|^2 + |gamma_perp|^2 - |delta_parallel|^2 = 1
+
+    betaNormSq = abs(betaParallel)**2 + abs(betaPerp)**2
+    alphaNormSq = abs(alpha)**2
+
+    denominator = betaNormSq - alphaNormSq
+
+    if np.abs(denominator) < atol:
+        raise ValueError("Cannot normalize partner mode: denominator too small.")
+
+    kSquared = 1.0 / denominator
+    if kSquared.real < 0:
+        raise ValueError("No real positive normalization possible under B2.")
+
+    k = np.sqrt(kSquared)
+
+    gammaParallel = k * np.conj(betaParallel)
+    gammaPerp = k * np.conj(betaPerp)
+    deltaParallel = k * np.conj(alpha)
+
+    # Verificación del conmutador:
+    commutator = (
+        abs(gammaParallel)**2 + abs(gammaPerp)**2
+        - abs(deltaParallel)**2 - abs(deltaPerp)**2
+    )
+
+    if np.abs(commutator - 1) > 1e-6:
+        raise ValueError(f"Commutator [bP, bP†] != 1: got {commutator}")
+
+    return gammaParallel, gammaPerp, deltaParallel, deltaPerp
+

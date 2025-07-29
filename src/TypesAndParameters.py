@@ -50,6 +50,7 @@ class MeasurementParameters(Enum):
     TYPE_OF_STATE = 'typeOfState'
     RESULTS = "results"
     EXTRA_DATA = "extraData"
+    SPECIAL_INFO = "specialInfo"
 
 
 class MeasurementDictType(TypedDict):
@@ -58,6 +59,7 @@ class MeasurementDictType(TypedDict):
     typeOfState: int
     results: Dict[int, np.ndarray]
     extraData: Dict[int, Any]
+    specialInfo: Any
 
 
 class TypeOfMeasurement(Enum):
@@ -68,3 +70,4 @@ class TypeOfMeasurement(Enum):
     SameParity = "sameParity"
     OccupationNumber = "occupationNumber"
     HawkingPartner = "hawkingPartner"
+    Comparison  ="comparison"

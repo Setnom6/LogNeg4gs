@@ -61,6 +61,7 @@ class LogNegManager:
         measurementType = measurementDict[MeasurementParameters.TYPE.value]
         modesToApply = measurementDict[MeasurementParameters.MODES_TO_APPLY.value]
         typeOfState = measurementDict[MeasurementParameters.TYPE_OF_STATE.value]
+        specialInfo = measurementDict[MeasurementParameters.SPECIAL_INFO.value]
 
         for i, simulation in enumerate(self.listOfSimulations):
             stateToMeasure = simulation.inState if typeOfState == 0 else simulation.outState
@@ -82,7 +83,7 @@ class LogNegManager:
                 else:
                     measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.hawkingPartner(
                         self.callHawkingPartnerCreator, simulation.inState, simulation.transformationMatrix,
-                        modesToApply)
+                        modesToApply, specialInfo)
             else:
                 measurementDict[MeasurementParameters.RESULTS.value][i] = self.measurements.selectMeasurement(
                     measurementType, stateToMeasure, modesToApply)
@@ -92,7 +93,7 @@ class LogNegManager:
 
     @staticmethod
     def callHawkingPartnerCreator(stateToApply: qgt.Gaussian_state, transformationMatrix: np.ndarray,
-                                  modeA: int) -> np.ndarray:
+                                  modeA: int, criterion: str) -> np.ndarray:
         """
         Callable function which prepares the full Bogoliubov transformation on the state given.
         It assumes that 'stateToApply' is the initial state with some feature (squeezing) but before the main transformation.
@@ -101,8 +102,30 @@ class LogNegManager:
         V = stateToApply.V
         SInitial = sqrtm(V)
         bogoliubovTransformation = transformationMatrix @ SInitial
-        newBogoliubovTransformation = extractMinimalHawkingPartner(bogoliubovTransformation, modeA)
+        if criterion is None:
+            criterion = "B1"
+        newBogoliubovTransformation = extractMinimalHawkingPartner(bogoliubovTransformation, modeA, partnerCriterion=criterion)
         return newBogoliubovTransformation
+    
+
+    def computeDifferenceBetweenMeasurements(self, measurementDict1: Dict, measurementDict2: Dict):
+        resultsDict1 = self.measureEntanglement(measurementDict1)
+        resultsDict2 = self.measureEntanglement(measurementDict2)
+        self._checkmeasurementDictsCompatibility(resultsDict1["measurement"], resultsDict2["measurement"])
+
+        totalResultsDict = resultsDict1.copy()
+        totalResultsDict["measurement"][MeasurementParameters.TYPE.value] =  TypeOfMeasurement.Comparison.value
+
+        for i in range(len(totalResultsDict["initialStates"])):
+            totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] = totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] - resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i]
+        
+        totalResultsDict["measurement"][MeasurementParameters.EXTRA_DATA.value] = (resultsDict1["measurement"][MeasurementParameters.TYPE.value], 
+                                                                                   resultsDict1["measurement"][MeasurementParameters.TYPE_OF_STATE.value],
+                                                                                   resultsDict2["measurement"][MeasurementParameters.TYPE.value], 
+                                                                                   resultsDict2["measurement"][MeasurementParameters.TYPE_OF_STATE.value])
+        return totalResultsDict
+
+
 
     def saveData(self, measurementDict: MeasurementDictType) -> Dict:
         dict_to_save = {
@@ -248,5 +271,17 @@ class LogNegManager:
             MeasurementParameters.TYPE_OF_STATE.value: measurementDict.get(MeasurementParameters.TYPE_OF_STATE.value,
                                                                            1),
             MeasurementParameters.RESULTS.value: dict(),
-            MeasurementParameters.EXTRA_DATA.value: dict()
+            MeasurementParameters.EXTRA_DATA.value: dict(),
+            MeasurementParameters.SPECIAL_INFO.value : measurementDict.get(MeasurementParameters.SPECIAL_INFO.value,
+                                                                           None)
         }
+
+    def _checkmeasurementDictsCompatibility(self, mDict1: MeasurementDictType, mDict2: MeasurementDictType):
+        if mDict1[MeasurementParameters.MODES_TO_APPLY.value] != mDict2[MeasurementParameters.MODES_TO_APPLY.value]:
+            raise ValueError("Both measurements should be done over the same specified modes.")
+        
+        if (mDict1[MeasurementParameters.TYPE.value] == TypeOfMeasurement.OneByOneForAGivenMode.value or
+        mDict1[MeasurementParameters.TYPE.value] == TypeOfMeasurement.HighestOneByOne.value or
+        mDict2[MeasurementParameters.TYPE.value] == TypeOfMeasurement.OneByOneForAGivenMode.value or
+        mDict2[MeasurementParameters.TYPE.value] == TypeOfMeasurement.HighestOneByOne.value):
+            raise ValueError("One by one simulations are not suitable for comparisons.")

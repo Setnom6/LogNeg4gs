@@ -286,7 +286,8 @@ class Measurements:
             obtainHawkingPartner: Callable[[qgt.Gaussian_state, np.ndarray, int], np.ndarray],
             stateToApply: qgt.Gaussian_state,
             transformationMatrix: np.ndarray,
-            modesToConsider: List[int] = None
+            modesToConsider: List[int] = None,
+            criterion: str = None,
     ):
         MODES = stateToApply.N_modes
         if modesToConsider is None:
@@ -296,7 +297,7 @@ class Measurements:
         logNegHawkingPartner = np.zeros(len(modesToConsider))
 
         def task(mode):
-            newBogoTrans = obtainHawkingPartner(stateToApply, transformationMatrix, mode)
+            newBogoTrans = obtainHawkingPartner(stateToApply, transformationMatrix, mode, criterion)
             newInitialState = qgt.Gaussian_state("vacuum", 2)
             newInitialState.apply_Bogoliubov_unitary(newBogoTrans)
             logNegPartner = newInitialState.logarithmic_negativity([0], [1])
