@@ -9,6 +9,7 @@ import numpy as np
 class TransformationMatrixParameters(str, Enum):
     DATA_DIRECTORY = "dataDirectory"
     INSTANT_TO_PLOT = "instantToPlot"
+    PRECOMPUTED_MATRIX = "precomputedMatrix"
 
 
 class InitialStateParameters(Enum):
@@ -26,6 +27,7 @@ class InitialStateDictType(TypedDict):
 class TransformationMatrixDictType(TypedDict):
     dataDirectory: str
     instantToPlot: int
+    precomputedMatrix: np.ndarray
 
 
 class GeneralOptionsParameters(Enum):
@@ -70,4 +72,4 @@ class TypeOfMeasurement(Enum):
     SameParity = "sameParity"
     OccupationNumber = "occupationNumber"
     HawkingPartner = "hawkingPartner"
-    Comparison  ="comparison"
+    Comparison = "comparison"

@@ -202,13 +202,13 @@ def computePartnerB2Coefficients(alpha, betaParallel, betaPerp, atol=1e-8):
         B = (betaParallelConj * alpha - betaParallelConj * A) / betaPerpConj
 
         # Use conmutation relation of partner to set lambda (we assume it to be real)
-        lambdaCoeff = np.sqrt(1.0 / (
-                betaParallel * betaParallelConj + betaPerp * betaPerpConj - np.abs(A) ** 2 - np.abs(B) ** 2))
+        lambdaCoeff = 1.0 / (
+                betaParallel * betaParallelConj + betaPerp * betaPerpConj - np.abs(A) ** 2 - np.abs(B) ** 2)
 
         gammaParallel = betaParallel * lambdaCoeff
         gammaPerp = betaPerp * lambdaCoeff
-        deltaParallel = A * lambdaCoeff
-        deltaPerp = B * lambdaCoeff
+        deltaParallel = A * np.conj(lambdaCoeff)
+        deltaPerp = B * np.conj(lambdaCoeff)
 
     conmutatorPartner = np.abs(gammaParallel) ** 2 + np.abs(gammaPerp) ** 2 - np.abs(deltaParallel) ** 2 - np.abs(
         deltaPerp) ** 2

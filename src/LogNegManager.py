@@ -25,29 +25,60 @@ class LogNegManager:
 
     def __init__(self, generalOptions: Dict, transformationDict: Dict, initialStates: List[Dict]):
         """
-        Builds an environment to manage different initial states, apply the desired Bogoliubov transformation on them, obtain the specified
-        entanglement measure and plot the results.
+        Builds an environment to manage different initial states, apply the desired Bogoliubov transformation on them,
+        obtain the specified entanglement measure and plot the results.
 
         Parameters
+        ----------
+        generalOptions : Dict
+            Dictionary with general configuration options.
+        transformationDict : Dict
+            Dictionary specifying how to obtain or directly include the transformation matrix.
+            Can contain:
+                - 'dataDirectory' and 'instantToPlot' to load the matrix from file.
+                - 'precomputedMatrix' as a np.ndarray to use a directly provided matrix.
+        initialStates : List[Dict]
+            List of initial states for which simulations will be constructed.
         """
         listOfSimulations = []
 
-        generalOptions, transformationDict, initialStates = self._validateEssentialDicts(generalOptions,
-                                                                                         transformationDict,
-                                                                                         initialStates)
+        generalOptions, transformationDict, initialStates = self._validateEssentialDicts(
+            generalOptions,
+            transformationDict,
+            initialStates
+        )
+
         numModes = generalOptions[GeneralOptionsParameters.NUM_MODES.value]
+        precomputedMatrix = transformationDict.get("precomputedMatrix", None)
+
         if isinstance(initialStates, dict):
-            listOfSimulations.append(CompleteSimulation(numModes, initialStates, transformationDict=transformationDict))
+            if precomputedMatrix is not None:
+                listOfSimulations.append(
+                    CompleteSimulation(numModes, initialStates, directParseOfTM=precomputedMatrix)
+                )
+            else:
+                listOfSimulations.append(
+                    CompleteSimulation(numModes, initialStates, transformationDict=transformationDict)
+                )
             listOfSimulations[0].performTransformation()
         else:
-            listOfSimulations.append(
-                CompleteSimulation(numModes, initialStates[0], transformationDict=transformationDict))
-            listOfSimulations[0].performTransformation()
-            transformationMatrix = listOfSimulations[0].transformationMatrix
-            for i in range(1, len(initialStates)):
+            if precomputedMatrix is not None:
+                for i, state in enumerate(initialStates):
+                    listOfSimulations.append(
+                        CompleteSimulation(numModes, state, directParseOfTM=precomputedMatrix)
+                    )
+                    listOfSimulations[i].performTransformation()
+            else:
                 listOfSimulations.append(
-                    CompleteSimulation(numModes, initialStates[i], directParseOfTM=transformationMatrix))
-                listOfSimulations[i].performTransformation()
+                    CompleteSimulation(numModes, initialStates[0], transformationDict=transformationDict)
+                )
+                listOfSimulations[0].performTransformation()
+                transformationMatrix = listOfSimulations[0].transformationMatrix
+                for i in range(1, len(initialStates)):
+                    listOfSimulations.append(
+                        CompleteSimulation(numModes, initialStates[i], directParseOfTM=transformationMatrix)
+                    )
+                    listOfSimulations[i].performTransformation()
 
         self.measurements = Measurements(parallelize=generalOptions[GeneralOptionsParameters.PARALLELIZE.value])
 
@@ -119,14 +150,14 @@ class LogNegManager:
 
         for i in range(len(totalResultsDict["initialStates"])):
             totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] = \
-            totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] - \
-            resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i]
+                totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] - \
+                resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i]
 
         totalResultsDict["measurement"][MeasurementParameters.EXTRA_DATA.value] = (
-        resultsDict1["measurement"][MeasurementParameters.TYPE.value],
-        resultsDict1["measurement"][MeasurementParameters.TYPE_OF_STATE.value],
-        resultsDict2["measurement"][MeasurementParameters.TYPE.value],
-        resultsDict2["measurement"][MeasurementParameters.TYPE_OF_STATE.value])
+            resultsDict1["measurement"][MeasurementParameters.TYPE.value],
+            resultsDict1["measurement"][MeasurementParameters.TYPE_OF_STATE.value],
+            resultsDict2["measurement"][MeasurementParameters.TYPE.value],
+            resultsDict2["measurement"][MeasurementParameters.TYPE_OF_STATE.value])
         return totalResultsDict
 
     def saveData(self, measurementDict: MeasurementDictType) -> Dict:
@@ -221,9 +252,9 @@ class LogNegManager:
         copyGeneralOptions = {
             GeneralOptionsParameters.NUM_MODES.value: generalOptions.get(GeneralOptionsParameters.NUM_MODES.value, 128),
             GeneralOptionsParameters.PLOTS_DIRECTORY.value: generalOptions.get(
-                GeneralOptionsParameters.PLOTS_DIRECTORY.value, "./plots/128-plots/"),
+                GeneralOptionsParameters.PLOTS_DIRECTORY.value, "./plots/10modes-plots/"),
             GeneralOptionsParameters.DATA_DIRECTORY.value: generalOptions.get(
-                GeneralOptionsParameters.DATA_DIRECTORY.value, "./data/128-plots/"),
+                GeneralOptionsParameters.DATA_DIRECTORY.value, "./data/10modes-data/"),
             GeneralOptionsParameters.BASE_DIRECTORY.value: generalOptions.get(
                 GeneralOptionsParameters.BASE_DIRECTORY.value, "./"
             ),
@@ -233,9 +264,11 @@ class LogNegManager:
 
         copyTransformationDict = {
             TransformationMatrixParameters.DATA_DIRECTORY.value: transformationDict.get(
-                TransformationMatrixParameters.DATA_DIRECTORY.value, "./sims-128/"),
+                TransformationMatrixParameters.DATA_DIRECTORY.value, "./example_data/10modes/"),
             TransformationMatrixParameters.INSTANT_TO_PLOT.value: transformationDict.get(
-                TransformationMatrixParameters.INSTANT_TO_PLOT.value, -1)
+                TransformationMatrixParameters.INSTANT_TO_PLOT.value, -1),
+            TransformationMatrixParameters.PRECOMPUTED_MATRIX.value: transformationDict.get(
+                TransformationMatrixParameters.PRECOMPUTED_MATRIX.value, None)
         }
 
         copyInitialStates = []

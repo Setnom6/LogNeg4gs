@@ -170,7 +170,7 @@ class CompleteSimulation:
         """
 
         temperature = initialStateDict[InitialStateParameters.TEMPERATURE.value]
-        temperatureGoodUnits = 0.694554 * temperature  # For L = 0.01 m, we go from T(Kelvin) to T(Planck) by T(P) = kb*L*T(K)/(c*hbar)
+        temperatureGoodUnits = 4.37 * temperature  # For L = 0.01 m, we go from T(Kelvin) to T(Planck) by T(P) = kb*L*T(K)/(c*hbar)
         oneModeSqueezing = initialStateDict[InitialStateParameters.ONE_MODE_SQUEEZING.value]
         twoModeSqueezing = initialStateDict[InitialStateParameters.TWO_MODE_SQUEEZING.value]
 
