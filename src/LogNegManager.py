@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import os
 import warnings
 from datetime import datetime
@@ -145,13 +146,13 @@ class LogNegManager:
         resultsDict2 = self.measureEntanglement(measurementDict2)
         self._checkmeasurementDictsCompatibility(resultsDict1["measurement"], resultsDict2["measurement"])
 
-        totalResultsDict = resultsDict1.copy()
+        totalResultsDict = copy.deepcopy(resultsDict1)
         totalResultsDict["measurement"][MeasurementParameters.TYPE.value] = TypeOfMeasurement.Comparison.value
 
         for i in range(len(totalResultsDict["initialStates"])):
             totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] = \
-                totalResultsDict["measurement"][MeasurementParameters.RESULTS.value][i] - \
-                resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i]
+                np.abs(resultsDict1["measurement"][MeasurementParameters.RESULTS.value][i] - \
+                       resultsDict2["measurement"][MeasurementParameters.RESULTS.value][i])
 
         totalResultsDict["measurement"][MeasurementParameters.EXTRA_DATA.value] = (
             resultsDict1["measurement"][MeasurementParameters.TYPE.value],
@@ -162,10 +163,10 @@ class LogNegManager:
 
     def saveData(self, measurementDict: MeasurementDictType) -> Dict:
         dict_to_save = {
-            "generalOptions": self.dictGeneralOptions.copy(),
-            "initialStates": self.initialStatesOptions.copy(),
-            "transformationMatrix": self.dictTransformationMatrix.copy(),
-            "measurement": measurementDict.copy()
+            "generalOptions": copy.deepcopy(self.dictGeneralOptions),
+            "initialStates": copy.deepcopy(self.initialStatesOptions),
+            "transformationMatrix": copy.deepcopy(self.dictTransformationMatrix),
+            "measurement": copy.deepcopy(measurementDict)
         }
 
         baseDirectory = self.dictGeneralOptions[GeneralOptionsParameters.BASE_DIRECTORY.value]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import warnings
 
 import numpy as np
@@ -225,7 +226,7 @@ class CompleteSimulation:
         if self.inState is None:
             raise Exception("Initial state not initialized")
 
-        outState = self.inState.copy()
+        outState = copy.deepcopy(self.inState)
         outState.apply_Bogoliubov_unitary(self.transformationMatrix)
 
         self.outState = outState

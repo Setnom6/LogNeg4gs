@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from typing import List, Union, Tuple, Callable
 
 import numpy as np
@@ -191,7 +192,7 @@ class Measurements:
 
         evenFirstModes = np.arange(0, MODES - 1, 2)
         oddFirstModes = np.arange(1, MODES, 2)
-        logNegEvenVsOdd = np.zeros(modesToConsider)
+        logNegEvenVsOdd = np.zeros_like(modesToConsider)
 
         def task(mode):
             def inner():
@@ -239,7 +240,7 @@ class Measurements:
 
         evenFirstModes = np.arange(0, MODES - 1, 2)
         oddFirstModes = np.arange(1, MODES, 2)
-        logNegEvenVsOdd = np.zeros(modesToConsider)
+        logNegEvenVsOdd = np.zeros_like(modesToConsider)
 
         def task(mode):
             def inner():
@@ -277,7 +278,7 @@ class Measurements:
         np.ndarray
             Array with the occupation number for each mode.
         """
-        state = stateToApply.copy()
+        state = copy.deepcopy(stateToApply)
         state.only_modes(modesToConsider)
         return state.occupation_number().flatten()
 
