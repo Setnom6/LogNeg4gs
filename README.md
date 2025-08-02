@@ -3,6 +3,36 @@
 LogNeg4gs (Logarithmic Negativity for Gaussian States) is a suite of methods which compute different bipartitions of
 LogNeg for a given symplectic transformation matrix which works for several kinds of initial Gaussian states.
 
+This repository contains the code used in the preprint available at: . All the physical definitions, background, and derivations required to understand the methods and interpretation of the results can be found there.
+
+# Repository structure
+
+```plaintext
+LogNeg4gs/
+├── README.md
+├── simulate.py
+├── src/
+│   └── LogNegManager.py   
+│   └── CompleteSimulation.py
+│   └── Measurements.py
+│   └── PartnerMethods.py
+│   └── PlotsManager.py
+│   └── TypesAndParameters.py
+│   └── qgt.py   
+├── example_data/
+│   └── 10modes/    
+│   └── data_info.md
+├── tutorials/
+│   ├── basic_tutorial.ipynb
+│   ├── critical_temperature.ipynb
+│   └── hawking_partner.ipynb
+├── requirements.txt
+├── LICENSE
+└── configuration_files/
+    └── config_example.json
+```
+
+
 # Requisites
 
 - The module qgt.py was obtained from https://github.com/Setnom6/Quantum-Gaussian-Information-Toolbox-v2 in its July
@@ -137,3 +167,13 @@ At the moment the following measurements can be done:
   ```modesToApply``` parameter. Only works for initial pure states (without temperature). There are two ways of compute
   the partner following the Hotta-Schutzhold-Unruh formula, "B1" or "B2" which can be selected with the parameters
   ```specialInfo```.
+
+
+## Tutorials
+
+The folder `tutorials/` contains some Jupyter notebooks illustrating how to use the package for typical configurations, custom measurements, and visualization of results. These notebooks are a good starting point to explore the capabilities of the code.
+
+
+## Authors and Citation
+
+This repository is maintained by J. M. Montes-Armenteros.
