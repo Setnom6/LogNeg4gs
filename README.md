@@ -3,7 +3,7 @@
 LogNeg4gs (Logarithmic Negativity for Gaussian States) is a suite of methods which compute different bipartitions of
 LogNeg for a given symplectic transformation matrix which works for several kinds of initial Gaussian states.
 
-This repository contains the code used in the preprint available at: . All the physical definitions, background, and derivations required to understand the methods and interpretation of the results can be found there.
+This repository contains the code used in the preprint available in [arXiv: 2508.00423](https://arxiv.org/abs/2508.00423) . All the physical definitions, background, and derivations required to understand the methods and interpretation of the results can be found there.
 
 # Repository structure
 
@@ -177,3 +177,24 @@ The folder `tutorials/` contains some Jupyter notebooks illustrating how to use 
 ## Authors and Citation
 
 This repository is maintained by J. M. Montes-Armenteros.
+
+If you use this repository in your research, please cite it as:
+
+```bibtex
+@misc{montes2025,
+  author       = {Jose Manuel Montes-Armenteros},
+  title        = {{LogNeg4gs}},
+  year         = {2025},
+  howpublished = {\url{https://github.com/Setnom6/LogNeg4gs}},
+  note         = {Accessed: YYYY-MM-DD}
+}
+
+```
+
+## Related publication
+
+The methods implemented in this repository are described in detail in the following preprint:
+
+J. M. Montes-Armenteros and J. Olmedo,  
+**Quantum entanglement of Hawking-Partner modes in expanding cavities**,  
+[arXiv:2508.00423](https://arxiv.org/abs/2508.00423) (2025).
